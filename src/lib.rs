@@ -13,6 +13,7 @@ use std::slice::SliceIndex;
 use std::str::FromStr;
 use std::task::{Context, Poll};
 use std::{fmt, io};
+use http::StatusCode;
 
 #[cfg(test)]
 mod tests;
@@ -69,6 +70,22 @@ quick_error! {
         ApolloContentNotFound {
             description("apollo content not found")
             display("Apollo content not found")
+        }
+        ApolloConfigNotFound {
+            description("apollo config not found")
+            display("Apollo config not found")
+        }
+        ApolloServerError {
+            description("apollo server error")
+            display("Apollo server error")
+        }
+        ApolloNotModified {
+            description("apollo not modified")
+            display("Apollo not modified")
+        }
+        ApolloOtherError(code: StatusCode) {
+            description("apollo other error")
+            display("apollo other error, status code: {}", code)
         }
     }
 }
@@ -347,8 +364,17 @@ impl<'a> Client<'a> {
     }
 
     async fn request_response(url: &str) -> ApolloClientResult<Response> {
-        let body = get_async(url).await?.text_async().await?;
-        log::trace!("Receive response body: {}", body);
+        let mut response = get_async(url).await?;
+        let status = response.status();
+        if !status.is_success() {
+            match response.status() {
+                StatusCode::NOT_MODIFIED => Err(ApolloClientError::ApolloNotModified)?,
+                StatusCode::NOT_FOUND => Err(ApolloClientError::ApolloConfigNotFound)?,
+                StatusCode::INTERNAL_SERVER_ERROR => Err(ApolloClientError::ApolloServerError)?,
+                status => Err(ApolloClientError::ApolloOtherError(status))?,
+            }
+        }
+        let body = response.text_async().await?;
         Ok(serde_json::from_str(&body)?)
     }
 

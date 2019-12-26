@@ -1,8 +1,13 @@
 use apollo_client::{ApolloClientResult, Client, ClientConfig, Configuration, Response};
 use std::collections::HashMap;
+use serde_derive::Deserialize;
+
+mod common;
 
 #[async_std::test]
 async fn test_client_request() -> ApolloClientResult<()> {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application", "application.yml"],
@@ -93,20 +98,24 @@ async fn test_client_request_3() {
         .unwrap();
 }
 
-//#[cfg(feature = "xml")]
-//#[async_std::test]
-//async fn test_client_request_4() {
-//    let client_config = ClientConfig {
-//        app_id: "SampleApp",
-//        namespace_names: vec!["application.yml"],
-//        ..Default::default()
-//    };
-//
-//    let configuration: Configuration<serde_yaml::Value> = Client::new_with_config(&client_config)
-//        .request()
-//        .await
-//        .unwrap();
-//
-//    assert_eq!(configuration["app"]["id"].as_i64().unwrap(), 5);
-//    assert_eq!(configuration["app"]["timeout"].as_i64().unwrap(), 100);
-//}
+#[cfg(feature = "xml")]
+#[async_std::test]
+async fn test_client_request_4() {
+    let client_config = ClientConfig {
+        app_id: "SampleApp",
+        namespace_names: vec!["application.xml"],
+        ..Default::default()
+    };
+
+    #[derive(Deserialize)]
+    struct App {
+        timeout: i32,
+    }
+
+    let configuration: Configuration<App> = Client::new_with_config(&client_config)
+        .request()
+        .await
+        .unwrap();
+
+    assert_eq!(configuration.timeout, 100);
+}

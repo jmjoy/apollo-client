@@ -20,6 +20,7 @@ exclude = [
 [dependencies]
 futures = { version = "0.3.1", features = ["alloc"] }
 hostname = "0.3.0"
+http = "0.1.21"
 isahc = "0.8.2"
 lazy_static = "1.4.0"
 log = "0.4.8"
@@ -38,4 +39,4 @@ env_logger = "0.7.1"
 [features]
 yaml = ["serde_yaml"]
 xml = ["serde-xml-rs"]
-full = ["yaml"]
+full = ["yaml", "xml"]
