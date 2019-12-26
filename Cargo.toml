@@ -7,7 +7,7 @@ description = "Rust🦀 client for Apollo."
 repository = "https://github.com/jmjoy/apollo-client"
 license-file = "LICENSE"
 readme = "README.md"
-keywords = ["apollo", "client"]
+keywords = ["apollo", "client", "阿波罗"]
 exclude = [
     ".github",
     ".gitignore",
@@ -18,9 +18,24 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+futures = { version = "0.3.1", features = ["alloc"] }
+hostname = "0.3.0"
 isahc = "0.8.2"
+lazy_static = "1.4.0"
 log = "0.4.8"
 quick-error = "1.2.2"
 serde = "1.0.104"
+serde-xml-rs = { version = "0.3.1", optional = true }
 serde_derive = "1.0.104"
 serde_json = "1.0.44"
+serde_urlencoded = "0.6.1"
+serde_yaml = { version = "0.8.11", optional = true }
+
+[dev-dependencies]
+async-std = { version = "1.4.0", features = ["attributes"] }
+env_logger = "0.7.1"
+
+[features]
+yaml = ["serde_yaml"]
+xml = ["serde-xml-rs"]
+full = ["yaml"]
