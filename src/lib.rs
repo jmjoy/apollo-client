@@ -1,4 +1,5 @@
 use futures::future::try_join_all;
+use http::StatusCode;
 use isahc::get_async;
 use isahc::ResponseExt;
 use lazy_static::lazy_static;
@@ -6,14 +7,13 @@ use quick_error::quick_error;
 use serde::de::{DeserializeOwned, MapAccess, SeqAccess};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::slice::SliceIndex;
 use std::str::FromStr;
 use std::task::{Context, Poll};
 use std::{fmt, io};
-use http::StatusCode;
 
 #[cfg(test)]
 mod tests;
@@ -288,7 +288,9 @@ impl Display for ConfigurationKind {
                 ConfigurationKind::Json => "json",
                 ConfigurationKind::Yaml => "yaml",
                 ConfigurationKind::Txt => "txt",
-            }, f )
+            },
+            f,
+        )
     }
 }
 
@@ -316,7 +318,7 @@ impl Response {
         }
     }
 
-    pub fn deserialize_configuration<'de, T: DeserializeOwned>(&self,) -> ApolloClientResult<T> {
+    pub fn deserialize_configuration<T: DeserializeOwned>(&self) -> ApolloClientResult<T> {
         match self.infer_kind() {
             ConfigurationKind::Json => {
                 Ok(serde_json::from_str(self.get_configurations_content()?)?)
@@ -329,6 +331,11 @@ impl Response {
             ConfigurationKind::Xml => {
                 Ok(serde_xml_rs::from_str(self.get_configurations_content()?)?)
             }
+            ConfigurationKind::Txt => {
+                let value =
+                    serde_json::Value::String(self.get_configurations_content()?.to_string());
+                Ok(serde_json::from_value(value)?)
+            }
             k => panic!(
                 "You have to enable feature `{}` for parsing this configuration kind.",
                 k
@@ -336,7 +343,9 @@ impl Response {
         }
     }
 
-    pub fn deserialize_to_configuration<T: DeserializeOwned>(&self) -> ApolloClientResult<Configuration<T>> {
+    pub fn deserialize_to_configuration<T: DeserializeOwned>(
+        &self,
+    ) -> ApolloClientResult<Configuration<T>> {
         self.deserialize_configuration()
             .map(|inner| Configuration::new(inner))
     }

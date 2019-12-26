@@ -1,6 +1,6 @@
 use apollo_client::{ApolloClientResult, Client, ClientConfig, Configuration, Response};
-use std::collections::HashMap;
 use serde_derive::Deserialize;
+use std::collections::HashMap;
 
 mod common;
 
@@ -118,4 +118,36 @@ async fn test_client_request_4() {
         .unwrap();
 
     assert_eq!(configuration.timeout, 100);
+}
+
+#[async_std::test]
+async fn test_client_request_5() {
+    let client_config = ClientConfig {
+        app_id: "SampleApp",
+        namespace_names: vec!["application.json"],
+        ..Default::default()
+    };
+
+    let configuration: Configuration<serde_json::Value> = Client::new_with_config(&client_config)
+        .request()
+        .await
+        .unwrap();
+
+    assert_eq!(configuration["timeout"].as_i64().unwrap(), 100);
+}
+
+#[async_std::test]
+async fn test_client_request_6() {
+    let client_config = ClientConfig {
+        app_id: "SampleApp",
+        namespace_names: vec!["application.txt"],
+        ..Default::default()
+    };
+
+    let configuration: Configuration<String> = Client::new_with_config(&client_config)
+        .request()
+        .await
+        .unwrap();
+
+    assert_eq!(&*configuration, "timeout is 100");
 }
