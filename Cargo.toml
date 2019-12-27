@@ -7,7 +7,7 @@ description = "Rust🦀 client for Apollo."
 repository = "https://github.com/jmjoy/apollo-client"
 license-file = "LICENSE"
 readme = "README.md"
-keywords = ["apollo", "client", "阿波罗"]
+keywords = ["apollo", "client"]
 exclude = [
     ".github",
     ".gitignore",
