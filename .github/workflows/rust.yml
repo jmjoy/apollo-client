@@ -1,15 +1,46 @@
 name: Rust
 
-on: [push]
+on:
+    push:
+      branches:
+      - master
+    pull_request:
+      branches:
+      - master
 
 jobs:
-  build:
-
+  all:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@master
+    - name: Docker compose
+      run: docker-compose up -d
     - name: Build
       run: cargo build --verbose
-    - name: Run tests
+    - name: Build with feature xml
+      run: cargo build --features xml --verbose
+    - name: Build with feature yaml
+      run: cargo build --features yaml --verbose
+    - name: Build with feature full
+      run: cargo build --features full --verbose
+    - name: Test
       run: cargo test --verbose
+      env:
+        RUST_BACKTRACE: 1
+        RUST_LOG: apollo_client
+    - name: Test with feature xml
+      run: cargo test --features xml --verbose
+      env:
+        RUST_BACKTRACE: 1
+        RUST_LOG: apollo_client
+    - name: Test with feature yaml
+      run: cargo test --features yaml --verbose
+      env:
+        RUST_BACKTRACE: 1
+        RUST_LOG: apollo_client
+    - name: Test with feature full
+      run: cargo test --features full --verbose
+      env:
+        RUST_BACKTRACE: 1
+        RUST_LOG: apollo_client
