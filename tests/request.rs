@@ -53,6 +53,8 @@ async fn test_client_request() -> ApolloClientResult<()> {
 #[async_std::test]
 #[should_panic(expected = "You have to enable feature `yaml` for parsing this configuration kind.")]
 async fn test_client_request_2() {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.yml"],
@@ -65,6 +67,8 @@ async fn test_client_request_2() {
 #[cfg(feature = "yaml")]
 #[async_std::test]
 async fn test_client_request_2() {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.yml"],
@@ -82,6 +86,8 @@ async fn test_client_request_2() {
 #[async_std::test]
 #[should_panic(expected = "You have to enable feature `xml` for parsing this configuration kind.")]
 async fn test_client_request_3() {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.xml"],
@@ -94,6 +100,8 @@ async fn test_client_request_3() {
 #[cfg(feature = "xml")]
 #[async_std::test]
 async fn test_client_request_4() {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.xml"],
@@ -113,6 +121,8 @@ async fn test_client_request_4() {
 
 #[async_std::test]
 async fn test_client_request_5() {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.json"],
@@ -127,6 +137,8 @@ async fn test_client_request_5() {
 
 #[async_std::test]
 async fn test_client_request_6() {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.txt"],
@@ -141,6 +153,8 @@ async fn test_client_request_6() {
 
 #[async_std::test]
 async fn test_client_request_7() {
+    common::setup();
+
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.properties"],

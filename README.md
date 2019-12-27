@@ -9,7 +9,24 @@ Rust🦀 client for Apollo.
 
 Power by Rust `async/await`.
 
+## Installation
 
+With [cargo add](https://github.com/killercup/cargo-edit) installed run:
+
+```sh
+$ cargo add -s apollo-client
+```
+
+**Notice that the `xml` and `yaml` features aren't enable by default, if you have such type namespace, you should add 
+`features` in `Cargo.toml`, just like:**
+
+```toml
+apollo-client = { version = "0.1.0", features = ["full"] }
+```
+
+## Usage
+
+You can find some examples in [the examples directory](https://github.com/jmjoy/apollo-client/tree/master/examples).
 
 ## License
 

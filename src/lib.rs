@@ -1,3 +1,7 @@
+//! Rust🦀 client for Apollo.
+//!
+//! Power by Rust `async/await`.
+//!
 use futures::future::try_join_all;
 use http::StatusCode;
 use isahc::ResponseExt;
@@ -106,6 +110,7 @@ impl From<serde_xml_rs::Error> for ApolloClientError {
     }
 }
 
+/// Configuration of Apollo and api information.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ClientConfig<'a> {
     pub config_server_url: &'a str,
@@ -128,9 +133,12 @@ impl Default for ClientConfig<'_> {
     }
 }
 
+/// Apollo config api `ip` param value.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum IpValue<'a> {
+    /// Get the hostname of the machine.
     HostName,
+    /// Specify your own IP address or other text.
     Custom(&'a str),
 }
 
@@ -153,6 +161,7 @@ impl<'a> IpValue<'a> {
     }
 }
 
+/// For apollo config api response to transfer to your favorite type.
 pub trait FromResponses: Sized {
     type Err;
 
@@ -224,6 +233,7 @@ impl<T: DeserializeOwned> FromResponses for HashMap<String, Configuration<T>> {
     }
 }
 
+/// The wrapper of apollo config api response's `configurations` field.
 pub struct Configuration<T> {
     inner: T,
 }
@@ -258,6 +268,7 @@ impl<T: Debug> Debug for Configuration<T> {
     }
 }
 
+/// Kind of a configuration namespace.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConfigurationKind {
     Properties,
@@ -282,6 +293,7 @@ impl Display for ConfigurationKind {
     }
 }
 
+/// Apollo config api response.
 #[derive(Debug, Deserialize)]
 pub struct Response {
     #[serde(rename = "appId")]
@@ -295,6 +307,7 @@ pub struct Response {
 }
 
 impl Response {
+    /// Get the `configurations.content` field of the response.
     pub fn get_configurations_content(&self) -> ApolloClientResult<&str> {
         self.configurations
             .get("content")
@@ -302,6 +315,7 @@ impl Response {
             .ok_or(ApolloClientError::ApolloContentNotFound)
     }
 
+    /// Infer the configuration namespace kind.
     pub fn infer_kind(&self) -> ConfigurationKind {
         let namespace_name = &self.namespace_name;
 
@@ -318,6 +332,8 @@ impl Response {
         }
     }
 
+    /// Deserialize the `configurations` field for `properties`, or `configurations.content` for
+    /// other namespace kind, without wrapper.
     pub fn deserialize_configuration<T: DeserializeOwned>(&self) -> ApolloClientResult<T> {
         match self.infer_kind() {
             ConfigurationKind::Properties => {
@@ -353,6 +369,8 @@ impl Response {
         }
     }
 
+    /// Deserialize the `configurations` field for `properties`, or `configurations.content` for
+    /// other namespace kind, with [`Configuration`] wrapper.
     pub fn deserialize_to_configuration<T: DeserializeOwned>(
         &self,
     ) -> ApolloClientResult<Configuration<T>> {
@@ -381,12 +399,14 @@ fn initialize_notifications(namespace_names: &[&str]) -> Notifications {
         .collect()
 }
 
+/// Represents the apollo client.
 pub struct Client<'a> {
     client_config: &'a ClientConfig<'a>,
     notifications: Notifications,
 }
 
 impl<'a> Client<'a> {
+    /// New with the configuration of apollo and api parameters.
     pub fn with_config(client_config: &'a ClientConfig<'a>) -> Self {
         Self {
             client_config,
@@ -394,6 +414,7 @@ impl<'a> Client<'a> {
         }
     }
 
+    /// Request apollo config api, and return response of your favorite type.
     pub async fn request<T: FromResponses<Err = ApolloClientError>>(
         &self,
     ) -> ApolloClientResult<T> {
@@ -415,6 +436,7 @@ impl<'a> Client<'a> {
         Ok(serde_json::from_str(&body)?)
     }
 
+    /// Request apollo notification api just once.
     pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
         let client = HttpClientBuilder::new()
             .timeout(DEFAULT_LISTEN_TIMEOUT)
@@ -436,6 +458,8 @@ impl<'a> Client<'a> {
         Ok(())
     }
 
+    /// Loop and request apollo notification api, if there is a change of the namespaces, return
+    /// the response of your favorite type, or [`ApolloClientError`] if there is something wrong.
     pub async fn listen_and_request<T: FromResponses<Err = ApolloClientError>>(
         &mut self,
     ) -> ApolloClientResult<T> {
