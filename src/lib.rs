@@ -1,26 +1,28 @@
 use futures::future::try_join_all;
 use http::StatusCode;
-use isahc::get_async;
 use isahc::ResponseExt;
+use isahc::{get_async, HttpClientBuilder};
 use lazy_static::lazy_static;
 use quick_error::quick_error;
-use serde::de::{DeserializeOwned, MapAccess, SeqAccess};
+use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
-use std::future::Future;
 use std::ops::{Deref, DerefMut};
-use std::slice::SliceIndex;
-use std::str::FromStr;
-use std::task::{Context, Poll};
+use std::time::Duration;
 use std::{fmt, io};
 
 #[cfg(test)]
 mod tests;
 
+/// Should be longer than server side's long polling timeout, which is now 60 seconds.
+const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(90);
+
+/// Apollo client crate side `Result`.
 pub type ApolloClientResult<T> = Result<T, ApolloClientError>;
 
 quick_error! {
+    /// Apollo client crate side `Error`.
     #[derive(Debug)]
     pub enum ApolloClientError {
         Io(err: io::Error) {
@@ -103,8 +105,6 @@ impl From<serde_xml_rs::Error> for ApolloClientError {
         ApolloClientError::SerdeXml(err)
     }
 }
-
-const NOTIFY_URL_TPL: &'static str = "{config_server_url}/notifications/v2?appId={appId}&cluster={clusterName}&notifications={notifications}";
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ClientConfig<'a> {
@@ -258,18 +258,6 @@ impl<T: Debug> Debug for Configuration<T> {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Response {
-    #[serde(rename = "appId")]
-    pub app_id: String,
-    pub cluster: String,
-    #[serde(rename = "namespaceName")]
-    pub namespace_name: String,
-    pub configurations: HashMap<String, String>,
-    #[serde(rename = "releaseKey")]
-    pub release_key: String,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConfigurationKind {
     Properties,
@@ -292,6 +280,18 @@ impl Display for ConfigurationKind {
             f,
         )
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Response {
+    #[serde(rename = "appId")]
+    pub app_id: String,
+    pub cluster: String,
+    #[serde(rename = "namespaceName")]
+    pub namespace_name: String,
+    pub configurations: HashMap<String, String>,
+    #[serde(rename = "releaseKey")]
+    pub release_key: String,
 }
 
 impl Response {
@@ -320,6 +320,15 @@ impl Response {
 
     pub fn deserialize_configuration<T: DeserializeOwned>(&self) -> ApolloClientResult<T> {
         match self.infer_kind() {
+            ConfigurationKind::Properties => {
+                let object = serde_json::Value::Object(
+                    self.configurations
+                        .iter()
+                        .map(|(key, value)| (key.clone(), serde_json::Value::String(value.clone())))
+                        .collect(),
+                );
+                Ok(serde_json::from_value(object)?)
+            }
             ConfigurationKind::Json => {
                 Ok(serde_json::from_str(self.get_configurations_content()?)?)
             }
@@ -336,6 +345,7 @@ impl Response {
                     serde_json::Value::String(self.get_configurations_content()?.to_string());
                 Ok(serde_json::from_value(value)?)
             }
+            #[allow(unreachable_patterns)]
             k => panic!(
                 "You have to enable feature `{}` for parsing this configuration kind.",
                 k
@@ -351,29 +361,94 @@ impl Response {
     }
 }
 
+type Notifications = Vec<Notification>;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Notification {
+    #[serde(rename = "namespaceName")]
+    namespace_name: String,
+    #[serde(rename = "notificationId")]
+    notification_id: i32,
+}
+
+fn initialize_notifications(namespace_names: &[&str]) -> Notifications {
+    namespace_names
+        .iter()
+        .map(|namespace_name| Notification {
+            namespace_name: namespace_name.to_string(),
+            notification_id: -1,
+        })
+        .collect()
+}
+
 pub struct Client<'a> {
     client_config: &'a ClientConfig<'a>,
+    notifications: Notifications,
 }
 
 impl<'a> Client<'a> {
-    pub fn new_with_config(client_config: &'a ClientConfig<'a>) -> Self {
-        Self { client_config }
+    pub fn with_config(client_config: &'a ClientConfig<'a>) -> Self {
+        Self {
+            client_config,
+            notifications: initialize_notifications(&client_config.namespace_names),
+        }
     }
 
     pub async fn request<T: FromResponses<Err = ApolloClientError>>(
         &self,
     ) -> ApolloClientResult<T> {
         let mut futures = Vec::with_capacity(self.client_config.namespace_names.len());
-        for (index, namespace_name) in self.client_config.namespace_names.iter().enumerate() {
+        for namespace_name in &self.client_config.namespace_names {
             let url = self.get_config_url(namespace_name, None)?;
+            log::debug!("Request apollo config api: {}", &url);
             futures.push(async move { Self::request_response(&url).await });
         }
         let responses = try_join_all(futures).await?;
+        log::trace!("Response apollo config data: {:?}", responses);
         FromResponses::from_responses(responses)
     }
 
     async fn request_response(url: &str) -> ApolloClientResult<Response> {
         let mut response = get_async(url).await?;
+        Self::handle_response_status(&response)?;
+        let body = response.text_async().await?;
+        Ok(serde_json::from_str(&body)?)
+    }
+
+    pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
+        let client = HttpClientBuilder::new()
+            .timeout(DEFAULT_LISTEN_TIMEOUT)
+            .build()?;
+
+        let url = self.get_listen_url(&self.notifications)?;
+        log::debug!("Request apollo notifications api: {}", &url);
+        let mut response = client.get_async(url).await?;
+        Self::handle_response_status(&response)?;
+
+        let body = response.text_async().await?;
+        let notifications: Notifications = serde_json::from_str(&body)?;
+        self.notifications = notifications;
+        log::trace!(
+            "Response apollo notifications body: {:?}",
+            &self.notifications
+        );
+
+        Ok(())
+    }
+
+    pub async fn listen_and_request<T: FromResponses<Err = ApolloClientError>>(
+        &mut self,
+    ) -> ApolloClientResult<T> {
+        loop {
+            match self.listen_once().await {
+                Ok(()) => return self.request().await,
+                Err(ApolloClientError::ApolloNotModified) => {}
+                Err(e) => Err(e)?,
+            }
+        }
+    }
+
+    fn handle_response_status<T>(response: &http::Response<T>) -> ApolloClientResult<()> {
         let status = response.status();
         if !status.is_success() {
             match response.status() {
@@ -383,12 +458,7 @@ impl<'a> Client<'a> {
                 status => Err(ApolloClientError::ApolloOtherError(status))?,
             }
         }
-        let body = response.text_async().await?;
-        Ok(serde_json::from_str(&body)?)
-    }
-
-    pub async fn listen() {
-        todo!()
+        Ok(())
     }
 
     fn get_config_url(
@@ -416,6 +486,31 @@ impl<'a> Client<'a> {
             cluster_name = self.client_config.cluster_name,
             namespace_name = namespace_name,
             query = query,
+        ))
+    }
+
+    fn get_listen_url(&self, notifications: &Notifications) -> ApolloClientResult<String> {
+        let notifications = if notifications.len() > 0 {
+            #[derive(Serialize)]
+            struct NotificationsQuery {
+                notifications: String,
+            }
+            let notifications = NotificationsQuery {
+                notifications: serde_json::to_string(notifications.deref())?,
+            };
+            let mut notifications = serde_urlencoded::to_string(notifications)?;
+            notifications.insert(0, '&');
+            notifications
+        } else {
+            "".to_string()
+        };
+
+        Ok(format!(
+            "{config_server_url}/notifications/v2?appId={app_id}&cluster={cluster_name}{notifications}",
+            config_server_url = self.client_config.config_server_url,
+            app_id = self.client_config.app_id,
+            cluster_name = self.client_config.cluster_name,
+            notifications = notifications,
         ))
     }
 }
