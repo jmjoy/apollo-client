@@ -5,7 +5,7 @@
 [![Crate](https://img.shields.io/crates/v/apollo-client.svg)](https://crates.io/crates/apollo-client)
 [![API](https://docs.rs/apollo-client/badge.svg)](https://docs.rs/apollo-client)
 
-Rust🦀 client for Apollo.
+Rust🦀 client for [Apollo](https://github.com/ctripcorp/apollo).
 
 Power by Rust `async/await`.
 

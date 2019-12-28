@@ -5,6 +5,7 @@ authors = ["__JM_Joy__ <918734043@qq.com>"]
 edition = "2018"
 description = "Rust🦀 client for Apollo."
 repository = "https://github.com/jmjoy/apollo-client"
+documentation = "https://docs.rs/apollo-client"
 license-file = "LICENSE"
 readme = "README.md"
 keywords = ["apollo", "client"]
