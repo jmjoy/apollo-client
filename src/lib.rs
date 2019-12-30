@@ -4,9 +4,8 @@
 //!
 use futures::future::try_join_all;
 use http::StatusCode;
-use isahc::ResponseExt;
 use isahc::HttpClientBuilder;
-use lazy_static::lazy_static;
+use isahc::ResponseExt;
 use quick_error::quick_error;
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
@@ -156,6 +155,8 @@ impl<'a> IpValue<'a> {
         match self {
             #[cfg(feature = "host-name")]
             IpValue::HostName => {
+                use lazy_static::lazy_static;
+
                 lazy_static! {
                     static ref HOSTNAME: String = {
                         hostname::get()
@@ -169,6 +170,7 @@ impl<'a> IpValue<'a> {
 
             #[cfg(feature = "host-ip")]
             IpValue::HostIpWithPrefix(prefix) => {
+                use lazy_static::lazy_static;
                 use systemstat::data::IpAddr;
                 use systemstat::platform::common::Platform;
                 use systemstat::System;

@@ -158,7 +158,7 @@ async fn test_client_request_7() {
     let client_config = ClientConfig {
         app_id: "SampleApp",
         namespace_names: vec!["application.properties"],
-        ip: Some(IpValue::HostName),
+        ip: Some(IpValue::Custom("test-host-name")),
         ..Default::default()
     };
 

@@ -52,3 +52,13 @@ host-name = ["hostname"]
 yaml = ["serde_yaml"]
 xml = ["serde-xml-rs"]
 full = ["default", "yaml", "xml"]
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+required-features = ["host-name"]
+
+[[example]]
+name = "listen"
+path = "examples/listen.rs"
+required-features = ["host-ip"]

@@ -14,4 +14,4 @@ keywords = ["apollo", "client", "standalone", "php"]
 
 [dependencies]
 apollo-client = { version = "0.2.0", "path" = "..", features = ["full"] }
-clap = "2.33.0"
+structopt = "0.3.7"
