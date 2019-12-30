@@ -18,6 +18,13 @@ fn test_ip_value_deserialize() -> ApolloClientResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "host-ip")]
+#[test]
+fn test_ip_value() {
+    assert_eq!(IpValue::HostIpWithPrefix("127.0.0.1").to_str(), "127.0.0.1");
+    assert_eq!(IpValue::Custom("test-host-name").to_str(), "test-host-name");
+}
+
 #[test]
 fn test_client_get_config_url() -> ApolloClientResult<()> {
     let client_config = ClientConfig {

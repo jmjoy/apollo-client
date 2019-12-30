@@ -1,6 +1,12 @@
+[workspace]
+members = [
+    ".",
+    "standalone-apollo-client",
+]
+
 [package]
 name = "apollo-client"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["__JM_Joy__ <918734043@qq.com>"]
 edition = "2018"
 description = "Rust🦀 client for Apollo."
@@ -21,7 +27,7 @@ exclude = [
 
 [dependencies]
 futures = { version = "0.3.1", features = ["alloc"] }
-hostname = "0.3.0"
+hostname = { version = "0.3.0", optional = true }
 http = "0.1.21"
 isahc = "0.8.2"
 lazy_static = "1.4.0"
@@ -33,12 +39,16 @@ serde_derive = "1.0.104"
 serde_json = "1.0.44"
 serde_urlencoded = "0.6.1"
 serde_yaml = { version = "0.8.11", optional = true }
+systemstat = { version = "0.1.5", optional = true }
 
 [dev-dependencies]
 async-std = { version = "1.4.0", features = ["attributes", "unstable"] }
 env_logger = "0.7.1"
 
 [features]
+default = ["host-ip", "host-name"]
+host-ip = ["systemstat"]
+host-name = ["hostname"]
 yaml = ["serde_yaml"]
 xml = ["serde-xml-rs"]
-full = ["yaml", "xml"]
+full = ["default", "yaml", "xml"]

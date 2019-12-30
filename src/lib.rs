@@ -5,7 +5,7 @@
 use futures::future::try_join_all;
 use http::StatusCode;
 use isahc::ResponseExt;
-use isahc::{get_async, HttpClientBuilder};
+use isahc::HttpClientBuilder;
 use lazy_static::lazy_static;
 use quick_error::quick_error;
 use serde::de::DeserializeOwned;
@@ -18,6 +18,9 @@ use std::{fmt, io};
 
 #[cfg(test)]
 mod tests;
+
+/// Default request config url timeout.
+const DEFAULT_CONFIG_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Should be longer than server side's long polling timeout, which is now 60 seconds.
 const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(90);
@@ -137,7 +140,13 @@ impl Default for ClientConfig<'_> {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum IpValue<'a> {
     /// Get the hostname of the machine.
+    #[cfg(feature = "host-name")]
     HostName,
+
+    /// Get the first ip of the machine, with the prefix, such as `10.2.`.
+    #[cfg(feature = "host-ip")]
+    HostIpWithPrefix(&'a str),
+
     /// Specify your own IP address or other text.
     Custom(&'a str),
 }
@@ -145,17 +154,50 @@ pub enum IpValue<'a> {
 impl<'a> IpValue<'a> {
     fn to_str(&'a self) -> &'a str {
         match self {
+            #[cfg(feature = "host-name")]
             IpValue::HostName => {
                 lazy_static! {
                     static ref HOSTNAME: String = {
                         hostname::get()
-                            .map_err(|_| ())
-                            .and_then(|hostname| hostname.into_string().map_err(|_| ()))
-                            .unwrap_or_else(|_| "unknown".to_string())
+                            .ok()
+                            .and_then(|hostname| hostname.into_string().ok())
+                            .unwrap_or("unknown".to_string())
                     };
                 }
                 &HOSTNAME
             }
+
+            #[cfg(feature = "host-ip")]
+            IpValue::HostIpWithPrefix(prefix) => {
+                use systemstat::data::IpAddr;
+                use systemstat::platform::common::Platform;
+                use systemstat::System;
+
+                lazy_static! {
+                    static ref ALL_ADDRS: Vec<String> = System::new()
+                        .networks()
+                        .ok()
+                        .map(|networks| networks
+                            .values()
+                            .map(|network| network.addrs.iter().filter_map(|network_addr| {
+                                match network_addr.addr {
+                                    IpAddr::V4(addr) => Some(addr.to_string()),
+                                    IpAddr::V6(addr) => Some(addr.to_string()),
+                                    _ => None,
+                                }
+                            }))
+                            .flatten()
+                            .collect())
+                        .unwrap_or(Vec::new());
+                }
+
+                ALL_ADDRS
+                    .iter()
+                    .find(|addr| addr.starts_with(prefix))
+                    .map(|s| s.as_str())
+                    .unwrap_or("127.0.0.1")
+            }
+
             IpValue::Custom(s) => s,
         }
     }
@@ -430,7 +472,11 @@ impl<'a> Client<'a> {
     }
 
     async fn request_response(url: &str) -> ApolloClientResult<Response> {
-        let mut response = get_async(url).await?;
+        let client = HttpClientBuilder::new()
+            .timeout(DEFAULT_CONFIG_TIMEOUT)
+            .build()?;
+
+        let mut response = client.get_async(url).await?;
         Self::handle_response_status(&response)?;
         let body = response.text_async().await?;
         Ok(serde_json::from_str(&body)?)

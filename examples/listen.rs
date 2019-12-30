@@ -15,7 +15,7 @@ async fn main() {
             app_id: "SampleApp",
             cluster_name: "default",
             namespace_names: vec!["application.json"],
-            ip: Some(IpValue::HostName),
+            ip: Some(IpValue::HostIpWithPrefix("172.16.")),
             ..Default::default()
         };
 
