@@ -3,33 +3,33 @@ use super::*;
 #[test]
 fn test_ip_value_deserialize() -> ApolloClientResult<()> {
     #[cfg(feature = "host-name")]
-    assert_eq!(serde_json::to_string(&IpValue::HostName)?, r#""HostName""#);
+    assert_eq!(serde_json::to_string(&IpValue::HostName)?, r#""host-name""#);
 
     #[cfg(feature = "host-ip")]
     assert_eq!(
         serde_json::to_string(&IpValue::HostIpWithPrefix("127."))?,
-        r#"{"HostIpWithPrefix":"127."}"#
+        r#"{"host-ip-with-prefix":"127."}"#
     );
 
     assert_eq!(
         serde_json::to_string(&IpValue::Custom("127.0.0.2"))?,
-        r#"{"Custom":"127.0.0.2"}"#
+        r#"{"custom":"127.0.0.2"}"#
     );
 
     #[cfg(feature = "host-name")]
     assert_eq!(
-        serde_json::from_str::<IpValue>(r#""HostName""#)?,
+        serde_json::from_str::<IpValue>(r#""host-name""#)?,
         IpValue::HostName
     );
 
     #[cfg(feature = "host-ip")]
     assert_eq!(
-        serde_json::from_str::<IpValue>(r#"{"HostIpWithPrefix":"127."}"#)?,
+        serde_json::from_str::<IpValue>(r#"{"host-ip-with-prefix":"127."}"#)?,
         IpValue::HostIpWithPrefix("127.")
     );
 
     assert_eq!(
-        serde_json::from_str::<IpValue>(r#"{"Custom":"127.0.0.2"}"#)?,
+        serde_json::from_str::<IpValue>(r#"{"custom":"127.0.0.2"}"#)?,
         IpValue::Custom("127.0.0.2")
     );
     Ok(())

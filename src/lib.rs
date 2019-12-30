@@ -115,9 +115,13 @@ impl From<serde_xml_rs::Error> for ApolloClientError {
 /// Configuration of Apollo and api information.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ClientConfig<'a> {
+    #[serde(rename = "config-server-url")]
     pub config_server_url: &'a str,
+    #[serde(rename = "app-id")]
     pub app_id: &'a str,
+    #[serde(rename = "cluster-name")]
     pub cluster_name: &'a str,
+    #[serde(rename = "namespace-names")]
     pub namespace_names: Vec<&'a str>,
     #[serde(default)]
     pub ip: Option<IpValue<'a>>,
@@ -140,13 +144,16 @@ impl Default for ClientConfig<'_> {
 pub enum IpValue<'a> {
     /// Get the hostname of the machine.
     #[cfg(feature = "host-name")]
+    #[serde(rename = "host-name")]
     HostName,
 
     /// Get the first ip of the machine, with the prefix, such as `10.2.`.
     #[cfg(feature = "host-ip")]
+    #[serde(rename = "host-ip-with-prefix")]
     HostIpWithPrefix(&'a str),
 
     /// Specify your own IP address or other text.
+    #[serde(rename = "custom")]
     Custom(&'a str),
 }
 
