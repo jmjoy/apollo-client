@@ -83,12 +83,37 @@ fn test_client_get_config_url_3() -> ApolloClientResult<()> {
     Ok(())
 }
 
+#[test]
+fn test_client_get_config_url_4() -> ApolloClientResult<()> {
+    let client_config = ClientConfig {
+        app_id: "test_app_id",
+        ip: Some(IpValue::Custom("???")),
+        ..Default::default()
+    };
+    let client = Client::with_config(&client_config);
+    let url = client.get_config_url("test_namespace", Some("test-release"), None)?;
+    assert_eq!(&url, "http://localhost:8080/configs/test_app_id/default/test_namespace?releaseKey=test-release&ip=%3F%3F%3F");
+    Ok(())
+}
+
+#[test]
+fn test_client_get_config_url_5() -> ApolloClientResult<()> {
+    let client_config = ClientConfig {
+        app_id: "test_app_id",
+        ..Default::default()
+    };
+    let client = Client::with_config(&client_config);
+    let url = client.get_config_url("test_namespace", Some("test-release"), Some(&[("noAudit", "1")]))?;
+    assert_eq!(&url, "http://localhost:8080/configs/test_app_id/default/test_namespace?releaseKey=test-release&noAudit=1");
+    Ok(())
+}
+
 fn test_client_get_config_url_common(
     client_config: ClientConfig,
     expect: &str,
 ) -> ApolloClientResult<()> {
     let client = Client::with_config(&client_config);
-    let url = client.get_config_url("test_namespace", None)?;
+    let url = client.get_config_url("test_namespace", None, None)?;
     assert_eq!(&url, expect);
     Ok(())
 }

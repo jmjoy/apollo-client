@@ -167,3 +167,20 @@ async fn test_client_request_7() {
 
     assert_eq!(configuration["timeout"], "100");
 }
+
+#[async_std::test]
+async fn test_client_request_8() {
+    common::setup();
+
+    let client_config = ClientConfig {
+        app_id: "SampleApp",
+        namespace_names: vec!["application.properties"],
+        ip: Some(IpValue::Custom("test-host-name")),
+        ..Default::default()
+    };
+
+    let configuration: Configuration<HashMap<String, String>> =
+        Client::with_config(&client_config).request_with_extras_query(Some(&[("noAudit", "1")])).await.unwrap();
+
+    assert_eq!(configuration["timeout"], "100");
+}

@@ -469,9 +469,17 @@ impl<'a> Client<'a> {
     pub async fn request<T: FromResponses<Err = ApolloClientError>>(
         &self,
     ) -> ApolloClientResult<T> {
+        self.request_with_extras_query(None).await
+    }
+
+    /// Request apollo config api, and return response of your favorite type, with extras query.
+    pub async fn request_with_extras_query<T: FromResponses<Err = ApolloClientError>>(
+        &self,
+        extras_query: Option<&[(&str, &str)]>,
+    ) -> ApolloClientResult<T> {
         let mut futures = Vec::with_capacity(self.client_config.namespace_names.len());
         for namespace_name in &self.client_config.namespace_names {
-            let url = self.get_config_url(namespace_name, None)?;
+            let url = self.get_config_url(namespace_name, None, extras_query)?;
             log::debug!("Request apollo config api: {}", &url);
             futures.push(async move { Self::request_response(&url).await });
         }
@@ -518,10 +526,20 @@ impl<'a> Client<'a> {
     pub async fn listen_and_request<T: FromResponses<Err = ApolloClientError>>(
         &mut self,
     ) -> ApolloClientResult<T> {
+        self.listen_and_request_with_extras_query(None).await
+    }
+
+    /// Loop and request apollo notification api, if there is a change of the namespaces, return
+    /// the response of your favorite type, or [`ApolloClientError`] if there is something wrong.
+    pub async fn listen_and_request_with_extras_query<T: FromResponses<Err = ApolloClientError>>(
+        &mut self,
+        extras_query: Option<&[(&str, &str)]>,
+    ) -> ApolloClientResult<T> {
         loop {
             match self.listen_once().await {
-                Ok(()) => return self.request().await,
+                Ok(()) => return self.request_with_extras_query(extras_query).await,
                 Err(ApolloClientError::ApolloNotModified) => {}
+                Err(ApolloClientError::Isahc(isahc::Error::Timeout)) => {},
                 Err(e) => Err(e)?,
             }
         }
@@ -544,13 +562,19 @@ impl<'a> Client<'a> {
         &self,
         namespace_name: &str,
         release_key: Option<&str>,
+        extras_query: Option<&[(&str, &str)]>,
     ) -> Result<String, serde_urlencoded::ser::Error> {
         let mut query = Vec::new();
         if let Some(release_key) = release_key {
-            query.push(("release_key", release_key));
+            query.push(("releaseKey", release_key));
         }
         if let Some(ip) = &self.client_config.ip {
             query.push(("ip", ip.to_str()));
+        }
+        if let Some(extras_query) = extras_query {
+            for item in extras_query {
+                query.push(item.to_owned());
+            }
         }
 
         let mut query = serde_urlencoded::to_string(query)?;
@@ -570,13 +594,7 @@ impl<'a> Client<'a> {
 
     fn get_listen_url(&self, notifications: &Notifications) -> ApolloClientResult<String> {
         let notifications = if notifications.len() > 0 {
-            #[derive(Serialize)]
-            struct NotificationsQuery {
-                notifications: String,
-            }
-            let notifications = NotificationsQuery {
-                notifications: serde_json::to_string(notifications.deref())?,
-            };
+            let notifications = &[("notifications", serde_json::to_string(notifications.deref())?)];
             let mut notifications = serde_urlencoded::to_string(notifications)?;
             notifications.insert(0, '&');
             notifications
