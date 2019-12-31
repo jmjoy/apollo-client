@@ -29,7 +29,7 @@ exclude = [
 futures = { version = "0.3.1", features = ["alloc"] }
 hostname = { version = "0.3.0", optional = true }
 http = "0.1.21"
-isahc = "0.8.2"
+isahc = { version = "0.8.2", default-features = false }
 lazy_static = "1.4.0"
 log = "0.4.8"
 quick-error = "1.2.2"
@@ -46,7 +46,7 @@ async-std = { version = "1.4.0", features = ["attributes", "unstable"] }
 env_logger = "0.7.1"
 
 [features]
-default = ["host-ip", "host-name"]
+default = ["host-ip", "host-name", "isahc/static-curl"]
 host-ip = ["systemstat"]
 host-name = ["hostname"]
 yaml = ["serde_yaml"]
@@ -62,3 +62,6 @@ required-features = ["host-name"]
 name = "listen"
 path = "examples/listen.rs"
 required-features = ["host-ip"]
+
+[package.metadata.docs.rs]
+features = ["full"]
