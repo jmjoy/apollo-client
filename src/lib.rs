@@ -2,6 +2,27 @@
 //!
 //! Power by Rust `async/await`.
 //!
+//! ## Features
+//!
+//! Not all features are default, you can read the `[features]` section of [Cargo.toml](https://github.com/jmjoy/apollo-client/blob/master/Cargo.toml) to know all the features.
+//!
+//! The `xml` and `yaml` features aren't enable by default, if you have such kind namespace, you should add
+//! `features` in `Cargo.toml`, just like:
+//!
+//! ```toml
+//! apollo-client = { version = "0.1.0", features = ["yaml", "xml"] }
+//! ```
+//!
+//! Or simply enable all features:
+//!
+//! ```toml
+//! apollo-client = { version = "0.1.0", features = ["full"] }
+//! ```
+//!
+//! ## Usage
+//!
+//! You can find some examples in [the examples directory](https://github.com/jmjoy/apollo-client/tree/master/examples).
+//!
 use futures::future::try_join_all;
 use http::StatusCode;
 use isahc::HttpClientBuilder;

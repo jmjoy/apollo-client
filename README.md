@@ -17,8 +17,18 @@ With [cargo add](https://github.com/killercup/cargo-edit) installed run:
 $ cargo add -s apollo-client
 ```
 
-**Notice that the `xml` and `yaml` features aren't enable by default, if you have such type namespace, you should add 
-`features` in `Cargo.toml`, just like:**
+## Features
+
+Not all features are default, you can read the `[features]` section of [Cargo.toml](https://github.com/jmjoy/apollo-client/blob/master/Cargo.toml) to know all the features.
+
+The `xml` and `yaml` features aren't enable by default, if you have such kind namespace, you should add 
+`features` in `Cargo.toml`, just like:
+
+```toml
+apollo-client = { version = "0.1.0", features = ["yaml", "xml"] }
+```
+
+Or simply enable all features:
 
 ```toml
 apollo-client = { version = "0.1.0", features = ["full"] }
