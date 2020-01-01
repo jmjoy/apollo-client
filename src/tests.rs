@@ -3,7 +3,10 @@ use super::*;
 #[test]
 fn test_ip_value_deserialize() -> ApolloClientResult<()> {
     #[cfg(feature = "host-name")]
-    assert_eq!(serde_json::to_string(&IpValue::HostName)?, r#""host-name""#);
+    assert_eq!(
+        serde_json::to_string::<IpValue<&str>>(&IpValue::HostName)?,
+        r#""host-name""#
+    );
 
     #[cfg(feature = "host-ip")]
     assert_eq!(
@@ -18,20 +21,26 @@ fn test_ip_value_deserialize() -> ApolloClientResult<()> {
 
     #[cfg(feature = "host-name")]
     assert_eq!(
-        serde_json::from_str::<IpValue>(r#""host-name""#)?,
+        serde_json::from_str::<IpValue<&str>>(r#""host-name""#)?,
         IpValue::HostName
     );
 
     #[cfg(feature = "host-ip")]
     assert_eq!(
-        serde_json::from_str::<IpValue>(r#"{"host-ip-with-prefix":"127."}"#)?,
+        serde_json::from_str::<IpValue<&str>>(r#"{"host-ip-with-prefix":"127."}"#)?,
         IpValue::HostIpWithPrefix("127.")
     );
 
     assert_eq!(
-        serde_json::from_str::<IpValue>(r#"{"custom":"127.0.0.2"}"#)?,
+        serde_json::from_str::<IpValue<&str>>(r#"{"custom":"127.0.0.2"}"#)?,
         IpValue::Custom("127.0.0.2")
     );
+
+    assert_eq!(
+        serde_json::from_str::<IpValue<String>>(r#"{"custom":"127.0.0.2"}"#)?,
+        IpValue::Custom("127.0.0.2".to_string())
+    );
+
     Ok(())
 }
 
@@ -39,7 +48,13 @@ fn test_ip_value_deserialize() -> ApolloClientResult<()> {
 fn test_ip_value() {
     #[cfg(feature = "host-ip")]
     assert_eq!(IpValue::HostIpWithPrefix("127.0.0.1").to_str(), "127.0.0.1");
+
     assert_eq!(IpValue::Custom("test-host-name").to_str(), "test-host-name");
+
+    assert_eq!(
+        IpValue::Custom("test-host-name".to_string()).to_str(),
+        "test-host-name"
+    );
 }
 
 #[test]
@@ -52,6 +67,18 @@ fn test_client_get_config_url() -> ApolloClientResult<()> {
         client_config,
         "http://localhost:8080/configs/test_app_id/default/test_namespace",
     )?;
+
+    let client_config = ClientConfig {
+        app_id: "test_app_id".to_string(),
+        ..Default::default()
+    };
+    let client = Client::with_config(client_config);
+    let url = client.get_config_url("test_namespace", None, None)?;
+    assert_eq!(
+        &url,
+        "http://localhost:8080/configs/test_app_id/default/test_namespace"
+    );
+
     Ok(())
 }
 
@@ -85,12 +112,12 @@ fn test_client_get_config_url_3() -> ApolloClientResult<()> {
 
 #[test]
 fn test_client_get_config_url_4() -> ApolloClientResult<()> {
-    let client_config = ClientConfig {
+    let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
         app_id: "test_app_id",
         ip: Some(IpValue::Custom("???")),
         ..Default::default()
     };
-    let client = Client::with_config(&client_config);
+    let client = Client::with_config(client_config);
     let url = client.get_config_url("test_namespace", Some("test-release"), None)?;
     assert_eq!(&url, "http://localhost:8080/configs/test_app_id/default/test_namespace?releaseKey=test-release&ip=%3F%3F%3F");
     Ok(())
@@ -98,21 +125,41 @@ fn test_client_get_config_url_4() -> ApolloClientResult<()> {
 
 #[test]
 fn test_client_get_config_url_5() -> ApolloClientResult<()> {
-    let client_config = ClientConfig {
+    let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
         app_id: "test_app_id",
         ..Default::default()
     };
-    let client = Client::with_config(&client_config);
-    let url = client.get_config_url("test_namespace", Some("test-release"), Some(&[("noAudit", "1")]))?;
+    let client = Client::with_config(client_config);
+    let url = client.get_config_url(
+        "test_namespace",
+        Some("test-release"),
+        Some(&[("noAudit", "1")]),
+    )?;
     assert_eq!(&url, "http://localhost:8080/configs/test_app_id/default/test_namespace?releaseKey=test-release&noAudit=1");
     Ok(())
 }
 
-fn test_client_get_config_url_common(
-    client_config: ClientConfig,
+#[test]
+fn test_client_get_config_url_6() -> ApolloClientResult<()> {
+    let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
+        app_id: "test_app_id",
+        ip: Some(IpValue::Custom("127.0.0.1")),
+        ..Default::default()
+    };
+    let client = Client::with_config(client_config);
+    let url = client.get_config_url("test_namespace", None, Some(&[("noAudit", "1")]))?;
+    assert_eq!(
+        &url,
+        "http://localhost:8080/configs/test_app_id/default/test_namespace?ip=127.0.0.1&noAudit=1"
+    );
+    Ok(())
+}
+
+fn test_client_get_config_url_common<'a>(
+    client_config: ClientConfig<&'a str, Vec<&'a str>>,
     expect: &str,
 ) -> ApolloClientResult<()> {
-    let client = Client::with_config(&client_config);
+    let client = Client::with_config(client_config);
     let url = client.get_config_url("test_namespace", None, None)?;
     assert_eq!(&url, expect);
     Ok(())
@@ -121,7 +168,7 @@ fn test_client_get_config_url_common(
 #[test]
 fn test_client_get_listen_url() -> ApolloClientResult<()> {
     test_client_get_listen_url_common(
-        &initialize_notifications(&[]),
+        &initialize_notifications::<&str>(&[]),
         "http://localhost:8080/notifications/v2?appId=test_app_id&cluster=default",
     )?;
     Ok(())
@@ -151,11 +198,11 @@ fn test_client_get_listen_url_common(
     notifications: &Notifications,
     expect: &str,
 ) -> ApolloClientResult<()> {
-    let client_config = ClientConfig {
+    let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
         app_id: "test_app_id",
         ..Default::default()
     };
-    let client = Client::with_config(&client_config);
+    let client = Client::with_config(client_config);
     let url = client.get_listen_url(notifications)?;
     assert_eq!(&url, expect);
     Ok(())

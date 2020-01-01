@@ -15,7 +15,7 @@ async fn main() -> ApolloClientResult<()> {
 
     // Request config once.
     let config: Configuration<serde_json::Value> =
-        Client::with_config(&client_config).request().await?;
+        Client::with_config(client_config).request().await?;
 
     dbg!(config);
 

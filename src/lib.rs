@@ -113,35 +113,65 @@ impl From<serde_xml_rs::Error> for ApolloClientError {
 }
 
 /// Configuration of Apollo and api information.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct ClientConfig<'a> {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClientConfig<S: AsRef<str>, V: AsRef<[S]>> {
     #[serde(rename = "config-server-url")]
-    pub config_server_url: &'a str,
+    pub config_server_url: S,
     #[serde(rename = "app-id")]
-    pub app_id: &'a str,
+    pub app_id: S,
     #[serde(rename = "cluster-name")]
-    pub cluster_name: &'a str,
+    pub cluster_name: S,
     #[serde(rename = "namespace-names")]
-    pub namespace_names: Vec<&'a str>,
+    pub namespace_names: V,
     #[serde(default)]
-    pub ip: Option<IpValue<'a>>,
+    pub ip: Option<IpValue<S>>,
 }
 
-impl Default for ClientConfig<'_> {
+impl Default for ClientConfig<&'static str, &'static [&'static str]> {
     fn default() -> Self {
         Self {
             config_server_url: "http://localhost:8080",
             app_id: "",
             cluster_name: "default",
-            namespace_names: vec!["application"],
+            namespace_names: &["application"],
+            ip: Default::default(),
+        }
+    }
+}
+
+impl Default for ClientConfig<&'static str, Vec<&'static str>> {
+    fn default() -> Self {
+        let client_config: ClientConfig<&'static str, &'static [&'static str]> = Default::default();
+        Self {
+            config_server_url: client_config.config_server_url,
+            app_id: client_config.app_id,
+            cluster_name: client_config.cluster_name,
+            namespace_names: client_config.namespace_names.to_owned(),
+            ip: Default::default(),
+        }
+    }
+}
+
+impl Default for ClientConfig<String, Vec<String>> {
+    fn default() -> Self {
+        let client_config: ClientConfig<&'static str, Vec<&'static str>> = Default::default();
+        Self {
+            config_server_url: client_config.config_server_url.to_owned(),
+            app_id: client_config.app_id.to_owned(),
+            cluster_name: client_config.cluster_name.to_owned(),
+            namespace_names: client_config
+                .namespace_names
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             ip: Default::default(),
         }
     }
 }
 
 /// Apollo config api `ip` param value.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum IpValue<'a> {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum IpValue<S: AsRef<str>> {
     /// Get the hostname of the machine.
     #[cfg(feature = "host-name")]
     #[serde(rename = "host-name")]
@@ -150,29 +180,29 @@ pub enum IpValue<'a> {
     /// Get the first ip of the machine, with the prefix, such as `10.2.`.
     #[cfg(feature = "host-ip")]
     #[serde(rename = "host-ip-with-prefix")]
-    HostIpWithPrefix(&'a str),
+    HostIpWithPrefix(S),
 
     /// Specify your own IP address or other text.
     #[serde(rename = "custom")]
-    Custom(&'a str),
+    Custom(S),
 }
 
-impl<'a> IpValue<'a> {
-    fn to_str(&'a self) -> &'a str {
+impl<S: AsRef<str>> IpValue<S> {
+    fn to_str(&self) -> &str {
         match self {
             #[cfg(feature = "host-name")]
             IpValue::HostName => {
                 use lazy_static::lazy_static;
 
                 lazy_static! {
-                    static ref HOSTNAME: String = {
+                    static ref HOSSNAME: String = {
                         hostname::get()
                             .ok()
                             .and_then(|hostname| hostname.into_string().ok())
                             .unwrap_or("unknown".to_string())
                     };
                 }
-                &HOSTNAME
+                &HOSSNAME
             }
 
             #[cfg(feature = "host-ip")]
@@ -202,21 +232,68 @@ impl<'a> IpValue<'a> {
 
                 ALL_ADDRS
                     .iter()
-                    .find(|addr| addr.starts_with(prefix))
+                    .find(|addr| addr.starts_with(prefix.as_ref()))
                     .map(|s| s.as_str())
                     .unwrap_or("127.0.0.1")
             }
 
-            IpValue::Custom(s) => s,
+            IpValue::Custom(s) => s.as_ref(),
         }
     }
 }
+
+//impl ToOwned for IpValue<'_> {
+//    type Owned = IpValueOwned;
+//
+//    fn to_owned(&self) -> Self::Owned {
+//        match self {
+//            #[cfg(feature = "host-name")]
+//            IpValue::HostName => IpValueOwned::HostName,
+//
+//            #[cfg(feature = "host-ip")]
+//            IpValue::HostIpWithPrefix(s) => IpValueOwned::HostIpWithPrefix(s.to_owned()),
+//
+//            IpValue::Custom(s) => IpValueOwned::Custom(s.to_owned()),
+//        }
+//    }
+//}
+//
+///// Apollo config api `ip` param value.
+//#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+//pub enum IpValueOwned {
+//    /// Get the hostname of the machine.
+//    #[cfg(feature = "host-name")]
+//    #[serde(rename = "host-name")]
+//    HostName,
+//
+//    /// Get the first ip of the machine, with the prefix, such as `10.2.`.
+//    #[cfg(feature = "host-ip")]
+//    #[serde(rename = "host-ip-with-prefix")]
+//    HostIpWithPrefix(String),
+//
+//    /// Specify your own IP address or other text.
+//    #[serde(rename = "custom")]
+//    Custom(String),
+//}
+//
+//impl IpValueOwned {
+//
+//}
 
 /// For apollo config api response to transfer to your favorite type.
 pub trait FromResponses: Sized {
     type Err;
 
     fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err>;
+}
+
+impl FromResponses for () {
+    type Err = ApolloClientError;
+
+    #[inline]
+    fn from_responses(_responses: Vec<Response>) -> Result<Self, Self::Err> {
+        Ok(())
+    }
 }
 
 impl FromResponses for Response {
@@ -233,6 +310,7 @@ impl FromResponses for Response {
 impl FromResponses for Vec<Response> {
     type Err = ApolloClientError;
 
+    #[inline]
     fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err> {
         Ok(responses)
     }
@@ -440,28 +518,37 @@ struct Notification {
     notification_id: i32,
 }
 
-fn initialize_notifications(namespace_names: &[&str]) -> Notifications {
+fn initialize_notifications<S: AsRef<str>>(namespace_names: &[S]) -> Notifications {
     namespace_names
         .iter()
         .map(|namespace_name| Notification {
-            namespace_name: namespace_name.to_string(),
+            namespace_name: namespace_name.as_ref().to_owned(),
             notification_id: -1,
         })
         .collect()
 }
 
 /// Represents the apollo client.
-pub struct Client<'a> {
-    client_config: &'a ClientConfig<'a>,
+pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
+    client_config: ClientConfig<T, V>,
     notifications: Notifications,
 }
 
-impl<'a> Client<'a> {
+impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     /// New with the configuration of apollo and api parameters.
-    pub fn with_config(client_config: &'a ClientConfig<'a>) -> Self {
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use apollo_client::{Client, ClientConfig};
+    /// let client_config: ClientConfig<&'static str, &'static [&'static str]> = Default::default();
+    /// let _ = Client::with_config(client_config);
+    /// ```
+    pub fn with_config(client_config: ClientConfig<S, V>) -> Self {
+        let notifications = initialize_notifications(client_config.namespace_names.as_ref());
         Self {
             client_config,
-            notifications: initialize_notifications(&client_config.namespace_names),
+            notifications,
         }
     }
 
@@ -477,9 +564,10 @@ impl<'a> Client<'a> {
         &self,
         extras_query: Option<&[(&str, &str)]>,
     ) -> ApolloClientResult<T> {
-        let mut futures = Vec::with_capacity(self.client_config.namespace_names.len());
-        for namespace_name in &self.client_config.namespace_names {
-            let url = self.get_config_url(namespace_name, None, extras_query)?;
+        let namespace_names = self.client_config.namespace_names.as_ref();
+        let mut futures = Vec::with_capacity(namespace_names.len());
+        for namespace_name in namespace_names {
+            let url = self.get_config_url(namespace_name.as_ref(), None, extras_query)?;
             log::debug!("Request apollo config api: {}", &url);
             futures.push(async move { Self::request_response(&url).await });
         }
@@ -539,7 +627,7 @@ impl<'a> Client<'a> {
             match self.listen_once().await {
                 Ok(()) => return self.request_with_extras_query(extras_query).await,
                 Err(ApolloClientError::ApolloNotModified) => {}
-                Err(ApolloClientError::Isahc(isahc::Error::Timeout)) => {},
+                Err(ApolloClientError::Isahc(isahc::Error::Timeout)) => {}
                 Err(e) => Err(e)?,
             }
         }
@@ -594,7 +682,10 @@ impl<'a> Client<'a> {
 
     fn get_listen_url(&self, notifications: &Notifications) -> ApolloClientResult<String> {
         let notifications = if notifications.len() > 0 {
-            let notifications = &[("notifications", serde_json::to_string(notifications.deref())?)];
+            let notifications = &[(
+                "notifications",
+                serde_json::to_string(notifications.deref())?,
+            )];
             let mut notifications = serde_urlencoded::to_string(notifications)?;
             notifications.insert(0, '&');
             notifications
