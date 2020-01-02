@@ -549,6 +549,16 @@ fn initialize_notifications<S: AsRef<str>>(namespace_names: &[S]) -> Notificatio
         .collect()
 }
 
+fn update_notifications(this: &mut Notifications, newer: Notifications) {
+    for newer_item in newer {
+        for this_item in this.iter_mut() {
+            if this_item.namespace_name == newer_item.namespace_name {
+                this_item.notification_id = newer_item.notification_id;
+            }
+        }
+    }
+}
+
 /// Represents the apollo client.
 pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
     client_config: ClientConfig<T, V>,
@@ -610,6 +620,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Request apollo notification api just once.
     pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
+        dbg!(&self.notifications);
         let client = HttpClientBuilder::new()
             .timeout(DEFAULT_LISTEN_TIMEOUT)
             .build()?;
@@ -621,7 +632,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
         let body = response.text_async().await?;
         let notifications: Notifications = serde_json::from_str(&body)?;
-        self.notifications = notifications;
+        update_notifications(&mut self.notifications, notifications);
         log::trace!(
             "Response apollo notifications body: {:?}",
             &self.notifications
