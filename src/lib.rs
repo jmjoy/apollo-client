@@ -543,7 +543,13 @@ fn initialize_notifications<S: AsRef<str>>(namespace_names: &[S]) -> Notificatio
     namespace_names
         .iter()
         .map(|namespace_name| Notification {
-            namespace_name: namespace_name.as_ref().to_owned(),
+            namespace_name: {
+                let mut namespace_name = namespace_name.as_ref();
+                if namespace_name.ends_with(".properties") {
+                    namespace_name = &namespace_name[..namespace_name.len() - ".properties".len()];
+                }
+                namespace_name.to_owned()
+            },
             notification_id: -1,
         })
         .collect()
