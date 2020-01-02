@@ -620,7 +620,6 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Request apollo notification api just once.
     pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
-        dbg!(&self.notifications);
         let client = HttpClientBuilder::new()
             .timeout(DEFAULT_LISTEN_TIMEOUT)
             .build()?;
