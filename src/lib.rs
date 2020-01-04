@@ -23,7 +23,8 @@
 //!
 //! You can find some examples in [the examples directory](https://github.com/jmjoy/apollo-client/tree/master/examples).
 //!
-use futures::future::try_join_all;
+use futures::future::{select, try_join_all, Either};
+use futures_timer::Delay;
 use http::StatusCode;
 use isahc::HttpClientBuilder;
 use isahc::ResponseExt;
@@ -115,6 +116,10 @@ quick_error! {
         ApolloOtherError(code: StatusCode) {
             description("apollo other error")
             display("apollo other error, status code: {}", code)
+        }
+        ApolloListenTimeout {
+            description("apollo listen timeout")
+            display("Apollo listen timeout")
         }
     }
 }
@@ -262,44 +267,6 @@ impl<S: AsRef<str>> IpValue<S> {
         }
     }
 }
-
-//impl ToOwned for IpValue<'_> {
-//    type Owned = IpValueOwned;
-//
-//    fn to_owned(&self) -> Self::Owned {
-//        match self {
-//            #[cfg(feature = "host-name")]
-//            IpValue::HostName => IpValueOwned::HostName,
-//
-//            #[cfg(feature = "host-ip")]
-//            IpValue::HostIpWithPrefix(s) => IpValueOwned::HostIpWithPrefix(s.to_owned()),
-//
-//            IpValue::Custom(s) => IpValueOwned::Custom(s.to_owned()),
-//        }
-//    }
-//}
-//
-///// Apollo config api `ip` param value.
-//#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-//pub enum IpValueOwned {
-//    /// Get the hostname of the machine.
-//    #[cfg(feature = "host-name")]
-//    #[serde(rename = "host-name")]
-//    HostName,
-//
-//    /// Get the first ip of the machine, with the prefix, such as `10.2.`.
-//    #[cfg(feature = "host-ip")]
-//    #[serde(rename = "host-ip-with-prefix")]
-//    HostIpWithPrefix(String),
-//
-//    /// Specify your own IP address or other text.
-//    #[serde(rename = "custom")]
-//    Custom(String),
-//}
-//
-//impl IpValueOwned {
-//
-//}
 
 /// For apollo config api response to transfer to your favorite type.
 pub trait FromResponses: Sized {
@@ -626,13 +593,17 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Request apollo notification api just once.
     pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
-        let client = HttpClientBuilder::new()
-            .timeout(DEFAULT_LISTEN_TIMEOUT)
-            .build()?;
+        let client = HttpClientBuilder::new().build()?;
 
         let url = self.get_listen_url(&self.notifications)?;
         log::debug!("Request apollo notifications api: {}", &url);
-        let mut response = client.get_async(url).await?;
+
+        let mut response =
+            match select(client.get_async(url), Delay::new(DEFAULT_LISTEN_TIMEOUT)).await {
+                Either::Left((response, ..)) => response?,
+                Either::Right(_) => Err(ApolloClientError::ApolloListenTimeout)?,
+            };
+
         Self::handle_response_status(&response)?;
 
         let body = response.text_async().await?;
@@ -664,7 +635,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
             match self.listen_once().await {
                 Ok(()) => return self.request_with_extras_query(extras_query).await,
                 Err(ApolloClientError::ApolloNotModified) => {}
-                Err(ApolloClientError::Isahc(isahc::Error::Timeout)) => {}
+                Err(ApolloClientError::ApolloListenTimeout) => {}
                 Err(e) => Err(e)?,
             }
         }

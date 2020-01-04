@@ -27,6 +27,7 @@ exclude = [
 
 [dependencies]
 futures = { version = "0.3.1", features = ["alloc"] }
+futures-timer = "2.0.2"
 hostname = { version = "0.3.0", optional = true }
 http = "0.1.21"
 isahc = { version = "0.8.2", default-features = false, features = ["static-curl"] }
