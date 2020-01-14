@@ -29,7 +29,6 @@ use http::StatusCode;
 use isahc::HttpClientBuilder;
 use isahc::ResponseExt;
 use quick_error::quick_error;
-use regex::Regex;
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -37,6 +36,9 @@ use std::fmt::{Debug, Display};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 use std::{fmt, io};
+
+#[cfg(feature = "regex")]
+use regex::Regex;
 
 #[cfg(test)]
 mod tests;
