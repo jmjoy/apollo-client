@@ -13,5 +13,5 @@ keywords = ["apollo", "client", "standalone", "php"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-apollo-client = { version = "0.2.0", "path" = "..", features = ["full"] }
+apollo-client = { version = "0.3.0", "path" = "..", features = ["full"] }
 structopt = "0.3.7"

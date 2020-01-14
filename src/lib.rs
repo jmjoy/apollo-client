@@ -29,6 +29,7 @@ use http::StatusCode;
 use isahc::HttpClientBuilder;
 use isahc::ResponseExt;
 use quick_error::quick_error;
+use regex::Regex;
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -203,10 +204,10 @@ pub enum IpValue<S: AsRef<str>> {
     #[serde(rename = "host-name")]
     HostName,
 
-    /// Get the first ip of the machine, with the prefix, such as `10.2.`.
+    /// Get the first ip of the machine match the prefix, such as `^10\.2\.`.
     #[cfg(feature = "host-ip")]
-    #[serde(rename = "host-ip-with-prefix")]
-    HostIpWithPrefix(S),
+    #[serde(rename = "host-ip-regex")]
+    HostIpRegex(S),
 
     /// Specify your own IP address or other text.
     #[serde(rename = "custom")]
@@ -232,7 +233,7 @@ impl<S: AsRef<str>> IpValue<S> {
             }
 
             #[cfg(feature = "host-ip")]
-            IpValue::HostIpWithPrefix(prefix) => {
+            IpValue::HostIpRegex(regex) => {
                 use lazy_static::lazy_static;
                 use systemstat::data::IpAddr;
                 use systemstat::platform::common::Platform;
@@ -256,9 +257,11 @@ impl<S: AsRef<str>> IpValue<S> {
                         .unwrap_or(Vec::new());
                 }
 
+                let re = Regex::new(regex.as_ref()).expect("Parse regex of HostIpRegex failed");
+
                 ALL_ADDRS
                     .iter()
-                    .find(|addr| addr.starts_with(prefix.as_ref()))
+                    .find(|addr| re.is_match(addr))
                     .map(|s| s.as_str())
                     .unwrap_or("127.0.0.1")
             }
