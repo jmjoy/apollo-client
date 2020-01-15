@@ -598,7 +598,9 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Request apollo notification api just once.
     pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
-        let client = HttpClientBuilder::new().build()?;
+        let client = HttpClientBuilder::new()
+            .timeout(DEFAULT_LISTEN_TIMEOUT + Duration::from_secs(10))
+            .build()?;
 
         let url = self.get_listen_url(&self.notifications)?;
         log::debug!("Request apollo notifications api: {}", &url);

@@ -19,7 +19,7 @@ async fn main() {
                 "application.json",
                 "application.yml",
             ],
-            ip: Some(IpValue::HostIpWithPrefix("172.16.")),
+            ip: Some(IpValue::HostIpRegex(r"^172\.16\.")),
             ..Default::default()
         };
 

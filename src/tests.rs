@@ -10,8 +10,8 @@ fn test_ip_value_deserialize() -> ApolloClientResult<()> {
 
     #[cfg(feature = "host-ip")]
     assert_eq!(
-        serde_json::to_string(&IpValue::HostIpWithPrefix("127."))?,
-        r#"{"host-ip-with-prefix":"127."}"#
+        serde_json::to_string(&IpValue::HostIpRegex(r"^127\."))?,
+        r#"{"host-ip-regex":"^127\\."}"#
     );
 
     assert_eq!(
@@ -27,8 +27,8 @@ fn test_ip_value_deserialize() -> ApolloClientResult<()> {
 
     #[cfg(feature = "host-ip")]
     assert_eq!(
-        serde_json::from_str::<IpValue<&str>>(r#"{"host-ip-with-prefix":"127."}"#)?,
-        IpValue::HostIpWithPrefix("127.")
+        serde_json::from_str::<IpValue<String>>(r#"{"host-ip-regex":"^127\\."}"#)?,
+        IpValue::HostIpRegex(r"^127\.".to_owned())
     );
 
     assert_eq!(
@@ -47,7 +47,10 @@ fn test_ip_value_deserialize() -> ApolloClientResult<()> {
 #[test]
 fn test_ip_value() {
     #[cfg(feature = "host-ip")]
-    assert_eq!(IpValue::HostIpWithPrefix("127.0.0.1").to_str(), "127.0.0.1");
+    assert_eq!(
+        IpValue::HostIpRegex(r"^127\.0\.0\.1$").to_str(),
+        "127.0.0.1"
+    );
 
     assert_eq!(IpValue::Custom("test-host-name").to_str(), "test-host-name");
 
