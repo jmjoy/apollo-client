@@ -26,6 +26,7 @@
 use futures::future::{select, try_join_all, Either};
 use futures_timer::Delay;
 use http::StatusCode;
+use indexmap::map::IndexMap;
 use isahc::HttpClientBuilder;
 use isahc::ResponseExt;
 use quick_error::quick_error;
@@ -423,7 +424,7 @@ pub struct Response {
     pub cluster: String,
     #[serde(rename = "namespaceName")]
     pub namespace_name: String,
-    pub configurations: HashMap<String, String>,
+    pub configurations: IndexMap<String, String>,
     #[serde(rename = "releaseKey")]
     pub release_key: String,
 }
@@ -432,8 +433,14 @@ impl Response {
     /// Get the `configurations.content` field of the response.
     pub fn get_configurations_content(&self) -> ApolloClientResult<&str> {
         self.configurations
-            .get("content")
-            .map(|s| s.as_str())
+            .iter()
+            .find_map(|(k, s)| {
+                if k == "content" {
+                    Some(s.as_str())
+                } else {
+                    None
+                }
+            })
             .ok_or(ApolloClientError::ApolloContentNotFound)
     }
 

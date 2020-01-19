@@ -25,13 +25,13 @@ The `xml` and `yaml` features aren't enable by default, if you have such kind na
 `features` in `Cargo.toml`, just like:
 
 ```toml
-apollo-client = { version = "0.1.0", features = ["yaml", "xml"] }
+apollo-client = { version = "0.4.0", features = ["yaml", "xml"] }
 ```
 
 Or simply enable all features:
 
 ```toml
-apollo-client = { version = "0.1.0", features = ["full"] }
+apollo-client = { version = "0.4.0", features = ["full"] }
 ```
 
 ## Usage
