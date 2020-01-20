@@ -12,7 +12,7 @@ async fn test_client_listen() -> ApolloClientResult<()> {
         ..Default::default()
     };
 
-    let result: Vec<Response> = Client::with_config(client_config)
+    let result: Vec<Response> = Client::with_config(client_config)?
         .listen_and_request()
         .await?;
     assert_eq!(result.len(), 2);
@@ -34,7 +34,7 @@ async fn test_client_listen_2() -> ApolloClientResult<()> {
         ..Default::default()
     };
 
-    let result: Vec<Response> = Client::with_config(client_config)
+    let result: Vec<Response> = Client::with_config(client_config)?
         .listen_and_request_with_extras_query(Some(&[("noAudit", "1")]))
         .await?;
     assert_eq!(result.len(), 2);

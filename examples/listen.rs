@@ -23,7 +23,7 @@ async fn main() {
             ..Default::default()
         };
 
-        let mut client = Client::with_config(client_config);
+        let mut client = Client::with_config(client_config).unwrap();
 
         loop {
             match client

@@ -26,7 +26,8 @@
 use futures::future::{select, try_join_all, Either};
 use futures_timer::Delay;
 use http::StatusCode;
-use isahc::HttpClientBuilder;
+use indexmap::map::IndexMap;
+use isahc::{HttpClientBuilder, HttpClient};
 use isahc::ResponseExt;
 use quick_error::quick_error;
 use serde::de::DeserializeOwned;
@@ -39,12 +40,10 @@ use std::{fmt, io};
 
 #[cfg(feature = "regex")]
 use regex::Regex;
+use isahc::config::DnsCache;
 
 #[cfg(test)]
 mod tests;
-
-/// Default request config url timeout.
-const DEFAULT_CONFIG_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Should be longer than server side's long polling timeout, which is now 60 seconds.
 const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(90);
@@ -423,7 +422,7 @@ pub struct Response {
     pub cluster: String,
     #[serde(rename = "namespaceName")]
     pub namespace_name: String,
-    pub configurations: HashMap<String, String>,
+    pub configurations: IndexMap<String, String>,
     #[serde(rename = "releaseKey")]
     pub release_key: String,
 }
@@ -432,8 +431,14 @@ impl Response {
     /// Get the `configurations.content` field of the response.
     pub fn get_configurations_content(&self) -> ApolloClientResult<&str> {
         self.configurations
-            .get("content")
-            .map(|s| s.as_str())
+            .iter()
+            .find_map(|(k, s)| {
+                if k == "content" {
+                    Some(s.as_str())
+                } else {
+                    None
+                }
+            })
             .ok_or(ApolloClientError::ApolloContentNotFound)
     }
 
@@ -540,6 +545,7 @@ fn update_notifications(this: &mut Notifications, newer: Notifications) {
 /// Represents the apollo client.
 pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
     client_config: ClientConfig<T, V>,
+    http_client: HttpClient,
     notifications: Notifications,
 }
 
@@ -553,12 +559,18 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     /// let client_config: ClientConfig<&'static str, &'static [&'static str]> = Default::default();
     /// let _ = Client::with_config(client_config);
     /// ```
-    pub fn with_config(client_config: ClientConfig<S, V>) -> Self {
+    pub fn with_config(client_config: ClientConfig<S, V>) -> ApolloClientResult<Self> {
         let notifications = initialize_notifications(client_config.namespace_names.as_ref());
-        Self {
+        let http_client = HttpClientBuilder::new()
+            .timeout(DEFAULT_LISTEN_TIMEOUT + Duration::from_secs(5))
+            .dns_cache(DnsCache::Disable)
+            .build()?;
+
+        Ok(Self {
             client_config,
+            http_client,
             notifications,
-        }
+        })
     }
 
     /// Request apollo config api, and return response of your favorite type.
@@ -578,19 +590,15 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         for namespace_name in namespace_names {
             let url = self.get_config_url(namespace_name.as_ref(), None, extras_query)?;
             log::debug!("Request apollo config api: {}", &url);
-            futures.push(async move { Self::request_response(&url).await });
+            futures.push(async move { Self::request_response(&self.http_client, &url).await });
         }
         let responses = try_join_all(futures).await?;
         log::trace!("Response apollo config data: {:?}", responses);
         FromResponses::from_responses(responses)
     }
 
-    async fn request_response(url: &str) -> ApolloClientResult<Response> {
-        let client = HttpClientBuilder::new()
-            .timeout(DEFAULT_CONFIG_TIMEOUT)
-            .build()?;
-
-        let mut response = client.get_async(url).await?;
+    async fn request_response(http_client: &HttpClient, url: &str) -> ApolloClientResult<Response> {
+        let mut response = http_client.get_async(url).await?;
         Self::handle_response_status(&response)?;
         let body = response.text_async().await?;
         Ok(serde_json::from_str(&body)?)
@@ -598,9 +606,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Request apollo notification api just once.
     pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
-        let client = HttpClientBuilder::new()
-            .timeout(DEFAULT_LISTEN_TIMEOUT + Duration::from_secs(10))
-            .build()?;
+        let client = &self.http_client;
 
         let url = self.get_listen_url(&self.notifications)?;
         log::debug!("Request apollo notifications api: {}", &url);
