@@ -16,7 +16,7 @@ async fn test_client_request() -> ApolloClientResult<()> {
         ..Default::default()
     };
 
-    let result: Vec<Response> = Client::with_config(client_config.clone()).request().await?;
+    let result: Vec<Response> = Client::with_config(client_config.clone())?.request().await?;
     assert_eq!(result.len(), 2);
     assert_eq!(&result[0].app_id, "SampleApp");
     assert_eq!(&result[0].cluster, "default");
@@ -27,14 +27,14 @@ async fn test_client_request() -> ApolloClientResult<()> {
     assert_eq!(&result[1].namespace_name, "application.yml");
     assert!(&result[1].configurations.contains_key("content"));
 
-    let result: Response = Client::with_config(client_config.clone()).request().await?;
+    let result: Response = Client::with_config(client_config.clone())?.request().await?;
     assert_eq!(&result.app_id, "SampleApp");
     assert_eq!(&result.cluster, "default");
     assert_eq!(&result.namespace_name, "application");
     assert_eq!(&result.configurations["timeout"], "100");
 
     let result: HashMap<String, Response> =
-        Client::with_config(client_config.clone()).request().await?;
+        Client::with_config(client_config.clone())?.request().await?;
     assert_eq!(result.len(), 2);
     assert_eq!(&result["application"].app_id, "SampleApp");
     assert_eq!(&result["application"].cluster, "default");
@@ -62,7 +62,7 @@ async fn test_client_request_2() {
         ..Default::default()
     };
 
-    let _: Configuration<()> = Client::with_config(client_config).request().await.unwrap();
+    let _: Configuration<()> = Client::with_config(client_config).unwrap().request().await.unwrap();
 }
 
 #[cfg(feature = "yaml")]
@@ -95,7 +95,7 @@ async fn test_client_request_3() {
         ..Default::default()
     };
 
-    let _: Configuration<()> = Client::with_config(client_config).request().await.unwrap();
+    let _: Configuration<()> = Client::with_config(client_config).unwrap().request().await.unwrap();
 }
 
 #[cfg(feature = "xml")]
@@ -131,7 +131,7 @@ async fn test_client_request_5() {
     };
 
     let configuration: Configuration<serde_json::Value> =
-        Client::with_config(client_config).request().await.unwrap();
+        Client::with_config(client_config).unwrap().request().await.unwrap();
 
     assert_eq!(configuration["timeout"].as_i64().unwrap(), 100);
 }
@@ -147,7 +147,7 @@ async fn test_client_request_6() {
     };
 
     let configuration: Configuration<String> =
-        Client::with_config(client_config).request().await.unwrap();
+        Client::with_config(client_config).unwrap().request().await.unwrap();
 
     assert_eq!(&*configuration, "timeout is 100");
 }
@@ -164,7 +164,7 @@ async fn test_client_request_7() {
     };
 
     let configuration: Configuration<HashMap<String, String>> =
-        Client::with_config(client_config).request().await.unwrap();
+        Client::with_config(client_config).unwrap().request().await.unwrap();
 
     assert_eq!(configuration["timeout"], "100");
 }
@@ -181,6 +181,7 @@ async fn test_client_request_8() {
     };
 
     let configuration: Configuration<HashMap<String, String>> = Client::with_config(client_config)
+        .unwrap()
         .request_with_extras_query(Some(&[("noAudit", "1")]))
         .await
         .unwrap();
