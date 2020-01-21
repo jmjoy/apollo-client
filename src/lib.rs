@@ -38,7 +38,7 @@ use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 use std::{fmt, io};
 
-use isahc::config::DnsCache;
+use isahc::config::{DnsCache, VersionNegotiation};
 #[cfg(feature = "regex")]
 use regex::Regex;
 
@@ -595,6 +595,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     async fn request_response(url: &str) -> ApolloClientResult<Response> {
         let client = HttpClientBuilder::new()
+            .version_negotiation(VersionNegotiation::http11())
             .dns_cache(DnsCache::Disable)
             .timeout(DEFAULT_CONFIG_TIMEOUT)
             .build()?;
@@ -608,6 +609,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     /// Request apollo notification api just once.
     pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
         let client = HttpClientBuilder::new()
+            .version_negotiation(VersionNegotiation::http11())
             .dns_cache(DnsCache::Disable)
             .timeout(DEFAULT_LISTEN_TIMEOUT + Duration::from_secs(10))
             .build()?;
