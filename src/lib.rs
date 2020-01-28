@@ -143,6 +143,30 @@ impl From<serde_xml_rs::Error> for ApolloClientError {
     }
 }
 
+/// Canonicalize the namespace. Just add `.properties` to the end of the namespace which not end
+/// with `.properties` or `.xml` or `.json` or `.yaml` or `.yml` or `.txt`.
+///
+/// # Examples
+///
+/// ```rust
+/// use apollo_client::canonicalize_namespace;
+/// assert_eq!(canonicalize_namespace("foo"), "foo.properties");
+/// assert_eq!(canonicalize_namespace("foo.yaml"), "foo.yaml");
+/// ```
+pub fn canonicalize_namespace(namespace: &str) -> String {
+    if namespace.ends_with(".properties")
+        || namespace.ends_with(".xml")
+        || namespace.ends_with(".json")
+        || namespace.ends_with(".yaml")
+        || namespace.ends_with(".yml")
+        || namespace.ends_with(".txt")
+    {
+        namespace.to_string()
+    } else {
+        format!("{}.properties", namespace)
+    }
+}
+
 /// Configuration of Apollo and api information.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClientConfig<S: AsRef<str>, V: AsRef<[S]>> {
@@ -276,77 +300,100 @@ impl<S: AsRef<str>> IpValue<S> {
 }
 
 /// For apollo config api response to transfer to your favorite type.
-pub trait FromResponses: Sized {
+pub trait FromBodies: Sized {
     type Err;
 
-    fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err>;
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err>;
 }
 
-impl FromResponses for () {
+impl FromBodies for () {
     type Err = ApolloClientError;
 
     #[inline]
-    fn from_responses(_responses: Vec<Response>) -> Result<Self, Self::Err> {
+    fn from_bodies(_bodies: Vec<String>) -> Result<Self, Self::Err> {
         Ok(())
     }
 }
 
-impl FromResponses for Response {
+impl FromBodies for String {
     type Err = ApolloClientError;
 
-    fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err> {
-        Ok(responses
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        bodies
             .into_iter()
             .nth(0)
-            .ok_or(ApolloClientError::EmptyResponses)?)
+            .ok_or(ApolloClientError::EmptyResponses)
     }
 }
 
-impl FromResponses for Vec<Response> {
+impl FromBodies for Vec<String> {
     type Err = ApolloClientError;
 
     #[inline]
-    fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err> {
-        Ok(responses)
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        Ok(bodies)
     }
 }
 
-impl FromResponses for HashMap<String, Response> {
+impl FromBodies for Response {
     type Err = ApolloClientError;
 
-    fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err> {
-        let mut m = HashMap::with_capacity(responses.len());
-        for response in responses {
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        bodies
+            .into_iter()
+            .nth(0)
+            .ok_or(ApolloClientError::EmptyResponses)
+            .and_then(|body| serde_json::from_str(&body).map_err(Into::into))
+    }
+}
+
+impl FromBodies for Vec<Response> {
+    type Err = ApolloClientError;
+
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        Ok(bodies
+            .iter()
+            .map(|body| serde_json::from_str(body))
+            .collect()?)
+    }
+}
+
+impl FromBodies for HashMap<String, Response> {
+    type Err = ApolloClientError;
+
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        let mut m = HashMap::with_capacity(bodies.len());
+        for response in bodies {
             m.insert(response.namespace_name.clone(), response);
         }
         Ok(m)
     }
 }
 
-impl<T: DeserializeOwned> FromResponses for Configuration<T> {
+impl<T: DeserializeOwned> FromBodies for Configuration<T> {
     type Err = ApolloClientError;
 
-    fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err> {
-        Response::from_responses(responses)?.deserialize_to_configuration()
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        Response::from_bodies(bodies)?.deserialize_to_configuration()
     }
 }
 
-impl<T: DeserializeOwned> FromResponses for Vec<Configuration<T>> {
+impl<T: DeserializeOwned> FromBodies for Vec<Configuration<T>> {
     type Err = ApolloClientError;
 
-    fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err> {
-        responses
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        bodies
             .into_iter()
             .map(|response| response.deserialize_to_configuration())
             .collect()
     }
 }
 
-impl<T: DeserializeOwned> FromResponses for HashMap<String, Configuration<T>> {
+impl<T: DeserializeOwned> FromBodies for HashMap<String, Configuration<T>> {
     type Err = ApolloClientError;
 
-    fn from_responses(responses: Vec<Response>) -> Result<Self, Self::Err> {
-        <HashMap<String, Response>>::from_responses(responses)?
+    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        <HashMap<String, Response>>::from_bodies(bodies)?
             .into_iter()
             .map(|(key, response)| {
                 response
@@ -400,6 +447,23 @@ pub enum ConfigurationKind {
     Json,
     Yaml,
     Txt,
+}
+
+impl ConfigurationKind {
+    /// Infer the configuration namespace kind.
+    pub fn infer_namespace_kind(namespace_name: &str) -> Self {
+        if namespace_name.ends_with(".xml") {
+            ConfigurationKind::Xml
+        } else if namespace_name.ends_with(".json") {
+            ConfigurationKind::Json
+        } else if namespace_name.ends_with(".yml") || namespace_name.ends_with(".yaml") {
+            ConfigurationKind::Yaml
+        } else if namespace_name.ends_with(".txt") {
+            ConfigurationKind::Txt
+        } else {
+            ConfigurationKind::Properties
+        }
+    }
 }
 
 impl Display for ConfigurationKind {
@@ -554,9 +618,9 @@ pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
 impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     /// New with the configuration of apollo and api parameters.
     ///
-    /// ## Example
+    /// ## Examples
     ///
-    /// ```
+    /// ```rust
     /// use apollo_client::{Client, ClientConfig};
     /// let client_config: ClientConfig<&'static str, &'static [&'static str]> = Default::default();
     /// let _ = Client::with_config(client_config);
@@ -570,14 +634,12 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     }
 
     /// Request apollo config api, and return response of your favorite type.
-    pub async fn request<T: FromResponses<Err = ApolloClientError>>(
-        &self,
-    ) -> ApolloClientResult<T> {
+    pub async fn request<T: FromBodies<Err = ApolloClientError>>(&self) -> ApolloClientResult<T> {
         self.request_with_extras_query(None).await
     }
 
     /// Request apollo config api, and return response of your favorite type, with extras query.
-    pub async fn request_with_extras_query<T: FromResponses<Err = ApolloClientError>>(
+    pub async fn request_with_extras_query<T: FromBodies<Err = ApolloClientError>>(
         &self,
         extras_query: Option<&[(&str, &str)]>,
     ) -> ApolloClientResult<T> {
@@ -586,14 +648,14 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         for namespace_name in namespace_names {
             let url = self.get_config_url(namespace_name.as_ref(), None, extras_query)?;
             log::debug!("Request apollo config api: {}", &url);
-            futures.push(async move { Self::request_response(&url).await });
+            futures.push(Self::request_bodies(&url));
         }
-        let responses = try_join_all(futures).await?;
-        log::trace!("Response apollo config data: {:?}", responses);
-        FromResponses::from_responses(responses)
+        let bodies = try_join_all(futures).await?;
+        log::trace!("Response apollo config data: {:?}", bodies);
+        FromBodies::from_bodies(bodies)
     }
 
-    async fn request_response(url: &str) -> ApolloClientResult<Response> {
+    async fn request_bodies(url: &str) -> ApolloClientResult<String> {
         let client = HttpClientBuilder::new()
             .version_negotiation(VersionNegotiation::http11())
             .dns_cache(DnsCache::Disable)
@@ -602,8 +664,8 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
         let mut response = client.get_async(url).await?;
         Self::handle_response_status(&response)?;
-        let body = response.text_async().await?;
-        Ok(serde_json::from_str(&body)?)
+        let bodies = response.text_async().await?;
+        Ok(bodies)
     }
 
     /// Request apollo notification api just once.
@@ -625,11 +687,11 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
         Self::handle_response_status(&response)?;
 
-        let body = response.text_async().await?;
-        let notifications: Notifications = serde_json::from_str(&body)?;
+        let bodies = response.text_async().await?;
+        let notifications: Notifications = serde_json::from_str(&bodies)?;
         update_notifications(&mut self.notifications, notifications);
         log::trace!(
-            "Response apollo notifications body: {:?}",
+            "Response apollo notifications bodies: {:?}",
             &self.notifications
         );
 
@@ -638,7 +700,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Loop and request apollo notification api, if there is a change of the namespaces, return
     /// the response of your favorite type, or [`ApolloClientError`] if there is something wrong.
-    pub async fn listen_and_request<T: FromResponses<Err = ApolloClientError>>(
+    pub async fn listen_and_request<T: FromBodies<Err = ApolloClientError>>(
         &mut self,
     ) -> ApolloClientResult<T> {
         self.listen_and_request_with_extras_query(None).await
@@ -646,7 +708,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Loop and request apollo notification api, if there is a change of the namespaces, return
     /// the response of your favorite type, or [`ApolloClientError`] if there is something wrong.
-    pub async fn listen_and_request_with_extras_query<T: FromResponses<Err = ApolloClientError>>(
+    pub async fn listen_and_request_with_extras_query<T: FromBodies<Err = ApolloClientError>>(
         &mut self,
         extras_query: Option<&[(&str, &str)]>,
     ) -> ApolloClientResult<T> {
