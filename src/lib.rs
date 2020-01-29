@@ -527,7 +527,6 @@ fn update_notifications(this: &mut Notifications, newer: Notifications) {
 pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
     client_config: ClientConfig<T, V>,
     notifications: Notifications,
-    notify_namespaces: Option<Vec<String>>,
 }
 
 impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
@@ -545,7 +544,6 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         Self {
             client_config,
             notifications,
-            notify_namespaces: None,
         }
     }
 
@@ -554,12 +552,28 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         self.request_with_extras_query(None).await
     }
 
-    /// Request apollo config api, and return response of your favorite type, with extras query.
     pub async fn request_with_extras_query<T: FromBodies>(
         &self,
         extras_query: Option<&[(&str, &str)]>,
     ) -> T {
-        let namespace_names = self.client_config.namespace_names.as_ref();
+        self.request_with_extras_query_and_namespaces(
+            extras_query,
+            &self.client_config.namespace_names,
+        )
+        .await
+    }
+
+    /// Request apollo config api, and return response of your favorite type, with extras query.
+    pub async fn request_with_extras_query_and_namespaces<
+        T: FromBodies,
+        Ns: AsRef<str>,
+        Nv: AsRef<[Ns]>,
+    >(
+        &self,
+        extras_query: Option<&[(&str, &str)]>,
+        namespace_names: Nv,
+    ) -> T {
+        let namespace_names = namespace_names.as_ref();
         let mut futures = Vec::with_capacity(namespace_names.len());
         for namespace_name in namespace_names {
             futures.push(async move {
@@ -592,7 +606,8 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     }
 
     /// Request apollo notification api just once.
-    pub async fn listen_once(&mut self) -> ApolloClientResult<()> {
+    /// Return the namespace names if ok.
+    pub async fn listen_once(&mut self) -> ApolloClientResult<Vec<String>> {
         let client = HttpClientBuilder::new()
             .version_negotiation(VersionNegotiation::http11())
             .dns_cache(DnsCache::Disable)
@@ -617,15 +632,13 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
             &self.notifications
         );
 
+        let notify_namespaces = notifications
+            .iter()
+            .map(|notification| notification.namespace_name.clone())
+            .collect();
         update_notifications(&mut self.notifications, notifications);
-        self.notify_namespaces = Some(
-            notifications
-                .iter()
-                .map(|notification| notification.namespace_name.clone())
-                .collect(),
-        );
 
-        Ok(())
+        Ok(notify_namespaces)
     }
 
     /// Loop and request apollo notification api, if there is a change of the namespaces, return
@@ -642,7 +655,11 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     ) -> ApolloClientResult<T> {
         loop {
             match self.listen_once().await {
-                Ok(()) => return Ok(self.request_with_extras_query(extras_query).await),
+                Ok(namespaces) => {
+                    return Ok(self
+                        .request_with_extras_query_and_namespaces(extras_query, &namespaces)
+                        .await)
+                }
                 Err(ApolloClientError::ApolloNotModified) => {}
                 Err(ApolloClientError::ApolloListenTimeout) => {}
                 Err(e) => Err(e)?,
