@@ -351,10 +351,10 @@ impl FromBodies for Vec<Response> {
     type Err = ApolloClientError;
 
     fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
-        Ok(bodies
+        bodies
             .iter()
-            .map(|body| serde_json::from_str(body))
-            .collect()?)
+            .map(|body| serde_json::from_str(body).map_err(Into::into))
+            .collect::<ApolloClientResult<Vec<Response>>>()
     }
 }
 
@@ -362,80 +362,12 @@ impl FromBodies for HashMap<String, Response> {
     type Err = ApolloClientError;
 
     fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
+        let bodies = <Vec<Response>>::from_bodies(bodies)?;
         let mut m = HashMap::with_capacity(bodies.len());
         for response in bodies {
             m.insert(response.namespace_name.clone(), response);
         }
         Ok(m)
-    }
-}
-
-impl<T: DeserializeOwned> FromBodies for Configuration<T> {
-    type Err = ApolloClientError;
-
-    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
-        Response::from_bodies(bodies)?.deserialize_to_configuration()
-    }
-}
-
-impl<T: DeserializeOwned> FromBodies for Vec<Configuration<T>> {
-    type Err = ApolloClientError;
-
-    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
-        bodies
-            .into_iter()
-            .map(|response| response.deserialize_to_configuration())
-            .collect()
-    }
-}
-
-impl<T: DeserializeOwned> FromBodies for HashMap<String, Configuration<T>> {
-    type Err = ApolloClientError;
-
-    fn from_bodies(bodies: Vec<String>) -> Result<Self, Self::Err> {
-        <HashMap<String, Response>>::from_bodies(bodies)?
-            .into_iter()
-            .map(|(key, response)| {
-                response
-                    .deserialize_to_configuration()
-                    .map(|configuration| (key, configuration))
-            })
-            .collect()
-    }
-}
-
-/// The wrapper of apollo config api response's `configurations` field.
-pub struct Configuration<T> {
-    inner: T,
-}
-
-impl<T> Configuration<T> {
-    pub fn new(inner: T) -> Self {
-        Self { inner }
-    }
-
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-}
-
-impl<T> Deref for Configuration<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> DerefMut for Configuration<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-impl<T: Debug> Debug for Configuration<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        Debug::fmt(&format!("Configuration {{ {:?} }}", &self.inner), f)
     }
 }
 
@@ -562,15 +494,6 @@ impl Response {
             ),
         }
     }
-
-    /// Deserialize the `configurations` field for `properties`, or `configurations.content` for
-    /// other namespace kind, with [`Configuration`] wrapper.
-    pub fn deserialize_to_configuration<T: DeserializeOwned>(
-        &self,
-    ) -> ApolloClientResult<Configuration<T>> {
-        self.deserialize_configuration()
-            .map(|inner| Configuration::new(inner))
-    }
 }
 
 type Notifications = Vec<Notification>;
@@ -648,14 +571,14 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         for namespace_name in namespace_names {
             let url = self.get_config_url(namespace_name.as_ref(), None, extras_query)?;
             log::debug!("Request apollo config api: {}", &url);
-            futures.push(Self::request_bodies(&url));
+            futures.push(Self::request_bodies(url));
         }
         let bodies = try_join_all(futures).await?;
         log::trace!("Response apollo config data: {:?}", bodies);
         FromBodies::from_bodies(bodies)
     }
 
-    async fn request_bodies(url: &str) -> ApolloClientResult<String> {
+    async fn request_bodies(url: String) -> ApolloClientResult<String> {
         let client = HttpClientBuilder::new()
             .version_negotiation(VersionNegotiation::http11())
             .dns_cache(DnsCache::Disable)
