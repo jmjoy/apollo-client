@@ -39,7 +39,7 @@ serde_yaml = { version = "0.8.11", optional = true }
 systemstat = { version = "0.1.5", optional = true }
 
 [dev-dependencies]
-async-std = { version = "1.4.0", features = ["attributes", "unstable"] }
+async-std = { version = "1.4.0", features = ["attributes"] }
 env_logger = "0.7.1"
 
 [features]
@@ -58,7 +58,7 @@ required-features = ["host-name"]
 [[example]]
 name = "listen"
 path = "examples/listen.rs"
-required-features = ["host-ip"]
+required-features = ["host-ip", "yaml"]
 
 [package.metadata.docs.rs]
 features = ["full"]

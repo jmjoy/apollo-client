@@ -40,6 +40,7 @@ use std::{fmt, io};
 use isahc::config::{DnsCache, VersionNegotiation};
 #[cfg(feature = "regex")]
 use regex::Regex;
+use std::ops::{Deref, DerefMut};
 
 #[cfg(test)]
 mod tests;
@@ -363,6 +364,68 @@ impl FromBodies for ApolloClientResult<HashMap<String, Response>> {
     }
 }
 
+impl<T: DeserializeOwned> FromBodies for ApolloClientResult<Configuration<T>> {
+    fn from_bodies(bodies: Vec<Result<String, ApolloClientError>>) -> Self {
+        <ApolloClientResult<Response>>::from_bodies(bodies)
+            .and_then(|response| response.deserialize_to_configuration())
+    }
+}
+
+impl<T: DeserializeOwned> FromBodies for ApolloClientResult<Vec<Configuration<T>>> {
+    fn from_bodies(bodies: Vec<Result<String, ApolloClientError>>) -> Self {
+        <ApolloClientResult<Vec<Response>>>::from_bodies(bodies).and_then(|response| {
+            response
+                .into_iter()
+                .map(|response| response.deserialize_to_configuration())
+                .collect()
+        })
+    }
+}
+
+impl<T: DeserializeOwned> FromBodies for Vec<ApolloClientResult<Configuration<T>>> {
+    fn from_bodies(bodies: Vec<Result<String, ApolloClientError>>) -> Self {
+        <Vec<ApolloClientResult<Response>>>::from_bodies(bodies)
+            .into_iter()
+            .map(|response| response.and_then(|response| response.deserialize_to_configuration()))
+            .collect()
+    }
+}
+
+/// The wrapper of apollo config api response's `configurations` field.
+pub struct Configuration<T> {
+    inner: T,
+}
+
+impl<T> Configuration<T> {
+    pub fn new(inner: T) -> Self {
+        Self { inner }
+    }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+}
+
+impl<T> Deref for Configuration<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> DerefMut for Configuration<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl<T: Debug> Debug for Configuration<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        Debug::fmt(&format!("Configuration {{ {:?} }}", &self.inner), f)
+    }
+}
+
 /// Kind of a configuration namespace.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConfigurationKind {
@@ -452,7 +515,7 @@ impl Response {
 
     /// Deserialize the `configurations` field for `properties`, or `configurations.content` for
     /// other namespace kind, without wrapper.
-    pub fn deserialize_configuration<T: DeserializeOwned>(&self) -> ApolloClientResult<T> {
+    pub fn deserialize_configurations<T: DeserializeOwned>(&self) -> ApolloClientResult<T> {
         match self.infer_kind() {
             ConfigurationKind::Properties => {
                 let object = serde_json::Value::Object(
@@ -485,6 +548,15 @@ impl Response {
                 k
             ),
         }
+    }
+
+    /// Deserialize the `configurations` field for `properties`, or `configurations.content` for
+    /// other namespace kind, with [`Configuration`] wrapper.
+    pub fn deserialize_to_configuration<T: DeserializeOwned>(
+        &self,
+    ) -> ApolloClientResult<Configuration<T>> {
+        self.deserialize_configurations()
+            .map(|inner| Configuration::new(inner))
     }
 }
 
