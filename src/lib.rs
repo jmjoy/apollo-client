@@ -658,7 +658,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
                 Ok(namespaces) => {
                     return Ok(self
                         .request_with_extras_query_and_namespaces(extras_query, &namespaces)
-                        .await)
+                        .await);
                 }
                 Err(ApolloClientError::ApolloNotModified) => {}
                 Err(ApolloClientError::ApolloListenTimeout) => {}
