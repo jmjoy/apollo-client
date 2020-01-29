@@ -10,13 +10,13 @@
 //! `features` in `Cargo.toml`, just like:
 //!
 //! ```toml
-//! apollo-client = { version = "0.1.0", features = ["yaml", "xml"] }
+//! apollo-client = { version = "0.4.0", features = ["yaml", "xml"] }
 //! ```
 //!
 //! Or simply enable all features:
 //!
 //! ```toml
-//! apollo-client = { version = "0.1.0", features = ["full"] }
+//! apollo-client = { version = "0.4.0", features = ["full"] }
 //! ```
 //!
 //! ## Usage
@@ -34,7 +34,6 @@ use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
-use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 use std::{fmt, io};
 
@@ -169,14 +168,11 @@ pub fn canonicalize_namespace(namespace: &str) -> String {
 
 /// Configuration of Apollo and api information.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ClientConfig<S: AsRef<str>, V: AsRef<[S]>> {
-    #[serde(rename = "config-server-url")]
     pub config_server_url: S,
-    #[serde(rename = "app-id")]
     pub app_id: S,
-    #[serde(rename = "cluster-name")]
     pub cluster_name: S,
-    #[serde(rename = "namespace-names")]
     pub namespace_names: V,
     #[serde(default)]
     pub ip: Option<IpValue<S>>,
@@ -226,19 +222,17 @@ impl Default for ClientConfig<String, Vec<String>> {
 
 /// Apollo config api `ip` param value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum IpValue<S: AsRef<str>> {
     /// Get the hostname of the machine.
     #[cfg(feature = "host-name")]
-    #[serde(rename = "host-name")]
     HostName,
 
     /// Get the first ip of the machine match the prefix, such as `^10\.2\.`.
     #[cfg(feature = "host-ip")]
-    #[serde(rename = "host-ip-regex")]
     HostIpRegex(S),
 
     /// Specify your own IP address or other text.
-    #[serde(rename = "custom")]
     Custom(S),
 }
 
@@ -499,10 +493,9 @@ impl Response {
 type Notifications = Vec<Notification>;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Notification {
-    #[serde(rename = "namespaceName")]
     namespace_name: String,
-    #[serde(rename = "notificationId")]
     notification_id: i32,
 }
 
@@ -545,10 +538,10 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     ///
     /// ```rust
     /// use apollo_client::{Client, ClientConfig};
-    /// let client_config: ClientConfig<&'static str, &'static [&'static str]> = Default::default();
-    /// let _ = Client::with_config(client_config);
+    /// let client_config: ClientConfig<String, Vec<String>> = Default::default();
+    /// let _ = Client::new(client_config);
     /// ```
-    pub fn with_config(client_config: ClientConfig<S, V>) -> Self {
+    pub fn new(client_config: ClientConfig<S, V>) -> Self {
         let notifications = initialize_notifications(client_config.namespace_names.as_ref());
         Self {
             client_config,
@@ -694,10 +687,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     fn get_listen_url(&self, notifications: &Notifications) -> ApolloClientResult<String> {
         let notifications = if notifications.len() > 0 {
-            let notifications = &[(
-                "notifications",
-                serde_json::to_string(notifications.deref())?,
-            )];
+            let notifications = &[("notifications", serde_json::to_string(&notifications)?)];
             let mut notifications = serde_urlencoded::to_string(notifications)?;
             notifications.insert(0, '&');
             notifications
