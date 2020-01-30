@@ -32,7 +32,7 @@ use isahc::ResponseExt;
 use quick_error::quick_error;
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+
 use std::fmt::{Debug, Display};
 use std::time::Duration;
 use std::{fmt, io};
@@ -40,7 +40,8 @@ use std::{fmt, io};
 use isahc::config::{DnsCache, VersionNegotiation};
 #[cfg(feature = "regex")]
 use regex::Regex;
-use std::ops::{Deref, DerefMut};
+
+use std::ops::Deref;
 
 #[cfg(test)]
 mod tests;
@@ -294,141 +295,9 @@ impl<S: AsRef<str>> IpValue<S> {
     }
 }
 
-/// For apollo config api response to transfer to your favorite type.
-pub trait FromBodies: Sized {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self;
-}
-
-impl FromBodies for ClientResult<()> {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        bodies.into_iter().map(|item| item.map(|_| ())).collect()
-    }
-}
-
-impl FromBodies for ClientResult<String> {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        match bodies.into_iter().nth(0) {
-            Some(item) => item,
-            None => Err(ClientError::EmptyResponses),
-        }
-    }
-}
-
-impl FromBodies for Vec<ClientResult<String>> {
-    #[inline]
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        bodies
-    }
-}
-
-impl FromBodies for ClientResult<Vec<String>> {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        bodies.into_iter().collect()
-    }
-}
-
-impl FromBodies for ClientResult<Response> {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        bodies
-            .into_iter()
-            .nth(0)
-            .ok_or(ClientError::EmptyResponses)
-            .and_then(|body| body.and_then(|body| serde_json::from_str(&body).map_err(Into::into)))
-    }
-}
-
-impl FromBodies for Vec<ClientResult<Response>> {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        bodies
-            .into_iter()
-            .map(|body| body.and_then(|body| serde_json::from_str(&body).map_err(Into::into)))
-            .collect()
-    }
-}
-
-impl FromBodies for ClientResult<Vec<Response>> {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        <Vec<ClientResult<Response>>>::from_bodies(bodies)
-            .into_iter()
-            .collect()
-    }
-}
-
-impl FromBodies for ClientResult<HashMap<String, Response>> {
-    fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        let responses = <ClientResult<Vec<Response>>>::from_bodies(bodies)?;
-        Ok(responses
-            .into_iter()
-            .map(|response| (response.namespace_name.clone(), response))
-            .collect())
-    }
-}
-
-impl<T: DeserializeOwned> FromBodies for ClientResult<Configuration<T>> {
-    fn from_bodies(bodies: Vec<Result<String, ClientError>>) -> Self {
-        <ClientResult<Response>>::from_bodies(bodies)
-            .and_then(|response| response.deserialize_to_configuration())
-    }
-}
-
-impl<T: DeserializeOwned> FromBodies for ClientResult<Vec<Configuration<T>>> {
-    fn from_bodies(bodies: Vec<Result<String, ClientError>>) -> Self {
-        <ClientResult<Vec<Response>>>::from_bodies(bodies).and_then(|response| {
-            response
-                .into_iter()
-                .map(|response| response.deserialize_to_configuration())
-                .collect()
-        })
-    }
-}
-
-impl<T: DeserializeOwned> FromBodies for Vec<ClientResult<Configuration<T>>> {
-    fn from_bodies(bodies: Vec<Result<String, ClientError>>) -> Self {
-        <Vec<ClientResult<Response>>>::from_bodies(bodies)
-            .into_iter()
-            .map(|response| response.and_then(|response| response.deserialize_to_configuration()))
-            .collect()
-    }
-}
-
-/// The wrapper of apollo config api response's `configurations` field.
-pub struct Configuration<T> {
-    inner: T,
-}
-
-impl<T> Configuration<T> {
-    pub fn new(inner: T) -> Self {
-        Self { inner }
-    }
-
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-}
-
-impl<T> Deref for Configuration<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> DerefMut for Configuration<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-impl<T: Debug> Debug for Configuration<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        Debug::fmt(&format!("Configuration {{ {:?} }}", &self.inner), f)
-    }
-}
-
 /// Kind of a configuration namespace.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ConfigurationKind {
+pub enum NamespaceKind {
     Properties,
     Xml,
     Json,
@@ -436,32 +305,32 @@ pub enum ConfigurationKind {
     Txt,
 }
 
-impl ConfigurationKind {
+impl NamespaceKind {
     /// Infer the configuration namespace kind.
     pub fn infer_namespace_kind(namespace_name: &str) -> Self {
         if namespace_name.ends_with(".xml") {
-            ConfigurationKind::Xml
+            NamespaceKind::Xml
         } else if namespace_name.ends_with(".json") {
-            ConfigurationKind::Json
+            NamespaceKind::Json
         } else if namespace_name.ends_with(".yml") || namespace_name.ends_with(".yaml") {
-            ConfigurationKind::Yaml
+            NamespaceKind::Yaml
         } else if namespace_name.ends_with(".txt") {
-            ConfigurationKind::Txt
+            NamespaceKind::Txt
         } else {
-            ConfigurationKind::Properties
+            NamespaceKind::Properties
         }
     }
 }
 
-impl Display for ConfigurationKind {
+impl Display for NamespaceKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         Display::fmt(
             match self {
-                ConfigurationKind::Properties => "properties",
-                ConfigurationKind::Xml => "xml",
-                ConfigurationKind::Json => "json",
-                ConfigurationKind::Yaml => "yaml",
-                ConfigurationKind::Txt => "txt",
+                NamespaceKind::Properties => "properties",
+                NamespaceKind::Xml => "xml",
+                NamespaceKind::Json => "json",
+                NamespaceKind::Yaml => "yaml",
+                NamespaceKind::Txt => "txt",
             },
             f,
         )
@@ -469,14 +338,14 @@ impl Display for ConfigurationKind {
 }
 
 /// Apollo config api responses.
+#[derive(Debug)]
 pub struct Responses {
     inner: Vec<ClientResult<Response>>,
 }
 
 impl Responses {
     fn from_bodies(bodies: Vec<ClientResult<String>>) -> Self {
-        let inner =
-        bodies
+        let inner = bodies
             .into_iter()
             .map(|body| body.and_then(|body| serde_json::from_str(&body).map_err(Into::into)))
             .collect();
@@ -485,6 +354,27 @@ impl Responses {
 
     pub fn into_inner(self) -> Vec<ClientResult<Response>> {
         self.inner
+    }
+
+    pub fn into_first(self) -> ClientResult<Response> {
+        match self.into_inner().into_iter().nth(0) {
+            Some(response) => response,
+            None => Err(ClientError::EmptyResponses),
+        }
+    }
+}
+
+impl Deref for Responses {
+    type Target = Vec<ClientResult<Response>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl Into<ClientResult<Response>> for Responses {
+    fn into(self) -> Result<Response, ClientError> {
+        self.into_first()
     }
 }
 
@@ -515,19 +405,19 @@ impl Response {
     }
 
     /// Infer the configuration namespace kind.
-    pub fn infer_kind(&self) -> ConfigurationKind {
+    pub fn infer_kind(&self) -> NamespaceKind {
         let namespace_name = &self.namespace_name;
 
         if namespace_name.ends_with(".xml") {
-            ConfigurationKind::Xml
+            NamespaceKind::Xml
         } else if namespace_name.ends_with(".json") {
-            ConfigurationKind::Json
+            NamespaceKind::Json
         } else if namespace_name.ends_with(".yml") || namespace_name.ends_with(".yaml") {
-            ConfigurationKind::Yaml
+            NamespaceKind::Yaml
         } else if namespace_name.ends_with(".txt") {
-            ConfigurationKind::Txt
+            NamespaceKind::Txt
         } else {
-            ConfigurationKind::Properties
+            NamespaceKind::Properties
         }
     }
 
@@ -535,7 +425,7 @@ impl Response {
     /// other namespace kind, without wrapper.
     pub fn deserialize_configurations<T: DeserializeOwned>(&self) -> ClientResult<T> {
         match self.infer_kind() {
-            ConfigurationKind::Properties => {
+            NamespaceKind::Properties => {
                 let object = serde_json::Value::Object(
                     self.configurations
                         .iter()
@@ -544,18 +434,12 @@ impl Response {
                 );
                 Ok(serde_json::from_value(object)?)
             }
-            ConfigurationKind::Json => {
-                Ok(serde_json::from_str(self.get_configurations_content()?)?)
-            }
+            NamespaceKind::Json => Ok(serde_json::from_str(self.get_configurations_content()?)?),
             #[cfg(feature = "yaml")]
-            ConfigurationKind::Yaml => {
-                Ok(serde_yaml::from_str(self.get_configurations_content()?)?)
-            }
+            NamespaceKind::Yaml => Ok(serde_yaml::from_str(self.get_configurations_content()?)?),
             #[cfg(feature = "xml")]
-            ConfigurationKind::Xml => {
-                Ok(serde_xml_rs::from_str(self.get_configurations_content()?)?)
-            }
-            ConfigurationKind::Txt => {
+            NamespaceKind::Xml => Ok(serde_xml_rs::from_str(self.get_configurations_content()?)?),
+            NamespaceKind::Txt => {
                 let value =
                     serde_json::Value::String(self.get_configurations_content()?.to_string());
                 Ok(serde_json::from_value(value)?)
@@ -566,15 +450,6 @@ impl Response {
                 k
             ),
         }
-    }
-
-    /// Deserialize the `configurations` field for `properties`, or `configurations.content` for
-    /// other namespace kind, with [`Configuration`] wrapper.
-    pub fn deserialize_to_configuration<T: DeserializeOwned>(
-        &self,
-    ) -> ClientResult<Configuration<T>> {
-        self.deserialize_configurations()
-            .map(|inner| Configuration::new(inner))
     }
 }
 
@@ -642,6 +517,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         self.request_with_extras_query(None).await
     }
 
+    /// Request apollo config api, and return response of your favorite type, with extras query.
     pub async fn request_with_extras_query(
         &self,
         extras_query: Option<&[(&str, &str)]>,
@@ -653,8 +529,9 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         .await
     }
 
-    /// Request apollo config api, and return response of your favorite type, with extras query.
-    pub async fn request_with_extras_query_and_namespaces<Ns: AsRef<str>, Nv: AsRef<[Ns]>>(
+    /// Request apollo config api, and return response of your favorite type, with extras query and
+    /// specific namespaces.
+    async fn request_with_extras_query_and_namespaces<Ns: AsRef<str>, Nv: AsRef<[Ns]>>(
         &self,
         extras_query: Option<&[(&str, &str)]>,
         namespace_names: Nv,
@@ -722,6 +599,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
             .iter()
             .map(|notification| notification.namespace_name.clone())
             .collect();
+
         update_notifications(&mut self.notifications, notifications);
 
         Ok(notify_namespaces)
