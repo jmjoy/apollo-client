@@ -1,9 +1,9 @@
-use apollo_client::{ApolloClientResult, Client, ClientConfig, Response};
+use apollo_client::{Client, ClientConfig, ClientResult, Response};
 
 mod common;
 
 #[async_std::test]
-async fn test_client_listen() -> ApolloClientResult<()> {
+async fn test_client_listen() -> ClientResult<()> {
     common::setup();
 
     let client_config = ClientConfig {
@@ -23,7 +23,7 @@ async fn test_client_listen() -> ApolloClientResult<()> {
 }
 
 #[async_std::test]
-async fn test_client_listen_2() -> ApolloClientResult<()> {
+async fn test_client_listen_2() -> ClientResult<()> {
     common::setup();
 
     let client_config = ClientConfig {

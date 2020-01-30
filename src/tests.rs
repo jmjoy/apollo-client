@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn test_ip_value_deserialize() -> ApolloClientResult<()> {
+fn test_ip_value_deserialize() -> ClientResult<()> {
     #[cfg(feature = "host-name")]
     assert_eq!(
         serde_json::to_string::<IpValue<&str>>(&IpValue::HostName)?,
@@ -61,7 +61,7 @@ fn test_ip_value() {
 }
 
 #[test]
-fn test_client_get_config_url() -> ApolloClientResult<()> {
+fn test_client_get_config_url() -> ClientResult<()> {
     let client_config = ClientConfig {
         app_id: "test_app_id",
         ..Default::default()
@@ -86,7 +86,7 @@ fn test_client_get_config_url() -> ApolloClientResult<()> {
 }
 
 #[test]
-fn test_client_get_config_url_2() -> ApolloClientResult<()> {
+fn test_client_get_config_url_2() -> ClientResult<()> {
     let client_config = ClientConfig {
         app_id: "test_app_id",
         ip: Some(IpValue::Custom("127.0.0.2")),
@@ -100,7 +100,7 @@ fn test_client_get_config_url_2() -> ApolloClientResult<()> {
 }
 
 #[test]
-fn test_client_get_config_url_3() -> ApolloClientResult<()> {
+fn test_client_get_config_url_3() -> ClientResult<()> {
     let client_config = ClientConfig {
         app_id: "test_app_id",
         ip: Some(IpValue::Custom("???")),
@@ -114,7 +114,7 @@ fn test_client_get_config_url_3() -> ApolloClientResult<()> {
 }
 
 #[test]
-fn test_client_get_config_url_4() -> ApolloClientResult<()> {
+fn test_client_get_config_url_4() -> ClientResult<()> {
     let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
         app_id: "test_app_id",
         ip: Some(IpValue::Custom("???")),
@@ -127,7 +127,7 @@ fn test_client_get_config_url_4() -> ApolloClientResult<()> {
 }
 
 #[test]
-fn test_client_get_config_url_5() -> ApolloClientResult<()> {
+fn test_client_get_config_url_5() -> ClientResult<()> {
     let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
         app_id: "test_app_id",
         ..Default::default()
@@ -143,7 +143,7 @@ fn test_client_get_config_url_5() -> ApolloClientResult<()> {
 }
 
 #[test]
-fn test_client_get_config_url_6() -> ApolloClientResult<()> {
+fn test_client_get_config_url_6() -> ClientResult<()> {
     let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
         app_id: "test_app_id",
         ip: Some(IpValue::Custom("127.0.0.1")),
@@ -161,7 +161,7 @@ fn test_client_get_config_url_6() -> ApolloClientResult<()> {
 fn test_client_get_config_url_common<'a>(
     client_config: ClientConfig<&'a str, Vec<&'a str>>,
     expect: &str,
-) -> ApolloClientResult<()> {
+) -> ClientResult<()> {
     let client = Client::new(client_config)?;
     let url = client.get_config_url("test_namespace", None, None)?;
     assert_eq!(&url, expect);
@@ -169,7 +169,7 @@ fn test_client_get_config_url_common<'a>(
 }
 
 #[test]
-fn test_client_get_listen_url() -> ApolloClientResult<()> {
+fn test_client_get_listen_url() -> ClientResult<()> {
     test_client_get_listen_url_common(
         &initialize_notifications::<&str>(&[]),
         "http://localhost:8080/notifications/v2?appId=test_app_id&cluster=default",
@@ -178,7 +178,7 @@ fn test_client_get_listen_url() -> ApolloClientResult<()> {
 }
 
 #[test]
-fn test_client_get_listen_url_2() -> ApolloClientResult<()> {
+fn test_client_get_listen_url_2() -> ClientResult<()> {
     test_client_get_listen_url_common(
         &initialize_notifications(&["test-namespace"]),
         "http://localhost:8080/notifications/v2?appId=test_app_id&cluster=default&notifications=%5B%7B%22namespaceName%22%3A%22test-namespace%22%2C%22notificationId%22%3A-1%7D%5D"
@@ -187,7 +187,7 @@ fn test_client_get_listen_url_2() -> ApolloClientResult<()> {
 }
 
 #[test]
-fn test_client_get_listen_url_3() -> ApolloClientResult<()> {
+fn test_client_get_listen_url_3() -> ClientResult<()> {
     let mut notifications = initialize_notifications(&["test-namespace-2"]);
     notifications[0].notification_id = 100;
     test_client_get_listen_url_common(
@@ -200,7 +200,7 @@ fn test_client_get_listen_url_3() -> ApolloClientResult<()> {
 fn test_client_get_listen_url_common(
     notifications: &Notifications,
     expect: &str,
-) -> ApolloClientResult<()> {
+) -> ClientResult<()> {
     let client_config: ClientConfig<&'static str, &'static [&'static str]> = ClientConfig {
         app_id: "test_app_id",
         ..Default::default()

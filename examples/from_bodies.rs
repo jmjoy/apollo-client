@@ -1,4 +1,4 @@
-use apollo_client::{ApolloClientResult, Client, ClientConfig, Configuration, Response};
+use apollo_client::{Client, ClientConfig, ClientResult, Configuration, Response};
 
 #[async_std::main]
 async fn main() {
@@ -12,17 +12,17 @@ async fn main() {
     };
     let client = Client::new(client_config);
 
-    let _: ApolloClientResult<()> = client.request().await;
+    let _: ClientResult<()> = client.request().await;
 
-    let _: ApolloClientResult<String> = client.request().await;
-    let _: ApolloClientResult<Vec<String>> = client.request().await;
-    let _: Vec<ApolloClientResult<String>> = client.request().await;
+    let _: ClientResult<String> = client.request().await;
+    let _: ClientResult<Vec<String>> = client.request().await;
+    let _: Vec<ClientResult<String>> = client.request().await;
 
-    let _: ApolloClientResult<Response> = client.request().await;
-    let _: ApolloClientResult<Vec<Response>> = client.request().await;
-    let _: Vec<ApolloClientResult<Response>> = client.request().await;
+    let _: ClientResult<Response> = client.request().await;
+    let _: ClientResult<Vec<Response>> = client.request().await;
+    let _: Vec<ClientResult<Response>> = client.request().await;
 
-    let _: ApolloClientResult<Configuration<serde_json::Value>> = client.request().await;
-    let _: ApolloClientResult<Vec<Configuration<serde_json::Value>>> = client.request().await;
-    let _: Vec<ApolloClientResult<Configuration<serde_json::Value>>> = client.request().await;
+    let _: ClientResult<Configuration<serde_json::Value>> = client.request().await;
+    let _: ClientResult<Vec<Configuration<serde_json::Value>>> = client.request().await;
+    let _: Vec<ClientResult<Configuration<serde_json::Value>>> = client.request().await;
 }

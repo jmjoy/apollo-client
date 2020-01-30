@@ -1,4 +1,4 @@
-use apollo_client::{ApolloClientResult, Client, ClientConfig, Configuration, IpValue};
+use apollo_client::{Client, ClientConfig, ClientResult, Configuration, IpValue};
 use futures_timer::Delay;
 use std::time::Duration;
 
@@ -23,7 +23,7 @@ async fn main() {
 
     loop {
         match client
-            .listen_and_request::<Vec<ApolloClientResult<Configuration<serde_yaml::Value>>>>()
+            .listen_and_request::<Vec<ClientResult<Configuration<serde_yaml::Value>>>>()
             .await
         {
             Ok(config) => {

@@ -1,7 +1,7 @@
-use apollo_client::{ApolloClientResult, Client, ClientConfig, Configuration, IpValue};
+use apollo_client::{Client, ClientConfig, ClientResult, Configuration, IpValue};
 
 #[async_std::main]
-async fn main() -> ApolloClientResult<()> {
+async fn main() -> ClientResult<()> {
     env_logger::init();
 
     let client_config = ClientConfig {
@@ -14,7 +14,7 @@ async fn main() -> ApolloClientResult<()> {
     };
 
     // Request response once.
-    let configuration: ApolloClientResult<Configuration<serde_json::Value>> =
+    let configuration: ClientResult<Configuration<serde_json::Value>> =
         Client::new(client_config).request().await;
     dbg!(&configuration);
 

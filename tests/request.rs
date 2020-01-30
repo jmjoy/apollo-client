@@ -1,4 +1,4 @@
-use apollo_client::{ApolloClientResult, Client, ClientConfig, Configuration, IpValue, Response};
+use apollo_client::{Client, ClientConfig, ClientResult, Configuration, IpValue, Response};
 use std::collections::HashMap;
 
 #[cfg(feature = "xml")]
@@ -7,7 +7,7 @@ use serde_derive::Deserialize;
 mod common;
 
 #[async_std::test]
-async fn test_client_request() -> ApolloClientResult<()> {
+async fn test_client_request() -> ClientResult<()> {
     common::setup();
 
     let client_config = ClientConfig {
