@@ -1,9 +1,9 @@
-use apollo_client::{ApolloClientResult, Client, ClientConfig, Response};
+use apollo_client::{Client, ClientConfig, ClientResult, Response};
 
 mod common;
 
 #[async_std::test]
-async fn test_client_listen() -> ApolloClientResult<()> {
+async fn test_client_listen() -> ClientResult<()> {
     common::setup();
 
     let client_config = ClientConfig {
@@ -12,9 +12,11 @@ async fn test_client_listen() -> ApolloClientResult<()> {
         ..Default::default()
     };
 
-    let result: Vec<Response> = Client::with_config(client_config)
+    let result: Vec<Response> = Client::new(client_config)
         .listen_and_request()
-        .await?;
+        .await?
+        .into_vec_response()
+        .unwrap();
     assert_eq!(result.len(), 2);
     assert_eq!(&result[0].app_id, "SampleApp");
     assert_eq!(&result[0].cluster, "default");
@@ -25,7 +27,7 @@ async fn test_client_listen() -> ApolloClientResult<()> {
 }
 
 #[async_std::test]
-async fn test_client_listen_2() -> ApolloClientResult<()> {
+async fn test_client_listen_2() -> ClientResult<()> {
     common::setup();
 
     let client_config = ClientConfig {
@@ -34,9 +36,10 @@ async fn test_client_listen_2() -> ApolloClientResult<()> {
         ..Default::default()
     };
 
-    let result: Vec<Response> = Client::with_config(client_config)
+    let result: Vec<Response> = Client::new(client_config)
         .listen_and_request_with_extras_query(Some(&[("noAudit", "1")]))
-        .await?;
+        .await?
+        .into_vec_response()?;
     assert_eq!(result.len(), 2);
     assert_eq!(&result[0].app_id, "SampleApp");
     assert_eq!(&result[0].cluster, "default");

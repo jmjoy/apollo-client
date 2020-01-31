@@ -13,9 +13,8 @@ env:
   RUST_LOG: apollo_client
 
 jobs:
-  all:
+  bulid-and-test:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@master
     - name: Docker compose
@@ -40,3 +39,14 @@ jobs:
       run: cargo test --features yaml --verbose
     - name: Test with feature full
       run: cargo test --features full --verbose
+
+  check-fmt-and-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: rustup component add rustfmt
+        run: rustup component add rustfmt
+      - name: fmt
+        run: cargo fmt --all -- --check
+      - name: doc
+        run: cargo doc

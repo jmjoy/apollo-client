@@ -1,4 +1,4 @@
-use apollo_client::{ApolloClientResult, Client, ClientConfig, Configuration, IpValue, Response};
+use apollo_client::{Client, ClientConfig, ClientResult, IpValue, Response};
 use std::collections::HashMap;
 
 #[cfg(feature = "xml")]
@@ -7,7 +7,7 @@ use serde_derive::Deserialize;
 mod common;
 
 #[async_std::test]
-async fn test_client_request() -> ApolloClientResult<()> {
+async fn test_client_request() -> ClientResult<()> {
     common::setup();
 
     let client_config = ClientConfig {
@@ -16,7 +16,10 @@ async fn test_client_request() -> ApolloClientResult<()> {
         ..Default::default()
     };
 
-    let result: Vec<Response> = Client::with_config(client_config.clone()).request().await?;
+    let result: Vec<Response> = Client::new(client_config.clone())
+        .request()
+        .await?
+        .into_vec_response()?;
     assert_eq!(result.len(), 2);
     assert_eq!(&result[0].app_id, "SampleApp");
     assert_eq!(&result[0].cluster, "default");
@@ -27,14 +30,19 @@ async fn test_client_request() -> ApolloClientResult<()> {
     assert_eq!(&result[1].namespace_name, "application.yml");
     assert!(&result[1].configurations.contains_key("content"));
 
-    let result: Response = Client::with_config(client_config.clone()).request().await?;
+    let result: Response = Client::new(client_config.clone())
+        .request()
+        .await?
+        .into_first()?;
     assert_eq!(&result.app_id, "SampleApp");
     assert_eq!(&result.cluster, "default");
     assert_eq!(&result.namespace_name, "application");
     assert_eq!(&result.configurations["timeout"], "100");
 
-    let result: HashMap<String, Response> =
-        Client::with_config(client_config.clone()).request().await?;
+    let result: HashMap<String, Response> = Client::new(client_config.clone())
+        .request()
+        .await?
+        .into_map_response()?;
     assert_eq!(result.len(), 2);
     assert_eq!(&result["application"].app_id, "SampleApp");
     assert_eq!(&result["application"].cluster, "default");
@@ -62,7 +70,13 @@ async fn test_client_request_2() {
         ..Default::default()
     };
 
-    let _: Configuration<()> = Client::with_config(client_config).request().await.unwrap();
+    let _ = Client::new(client_config)
+        .request()
+        .await
+        .unwrap()
+        .into_first()
+        .unwrap()
+        .deserialize_configurations::<()>();
 }
 
 #[cfg(feature = "yaml")]
@@ -76,8 +90,14 @@ async fn test_client_request_2() {
         ..Default::default()
     };
 
-    let configuration: Configuration<serde_yaml::Value> =
-        Client::with_config(client_config).request().await.unwrap();
+    let configuration = Client::new(client_config)
+        .unwrap()
+        .request()
+        .await
+        .unwrap()
+        .into_first()
+        .deserialize_configurations::<serde_yaml::Value>()
+        .unwrap();
 
     assert_eq!(configuration["app"]["id"].as_i64().unwrap(), 5);
     assert_eq!(configuration["app"]["timeout"].as_i64().unwrap(), 100);
@@ -95,7 +115,14 @@ async fn test_client_request_3() {
         ..Default::default()
     };
 
-    let _: Configuration<()> = Client::with_config(client_config).request().await.unwrap();
+    let _ = Client::new(client_config)
+        .request()
+        .await
+        .unwrap()
+        .into_first()
+        .unwrap()
+        .deserialize_configurations::<()>()
+        .unwrap();
 }
 
 #[cfg(feature = "xml")]
@@ -114,10 +141,16 @@ async fn test_client_request_4() {
         timeout: i32,
     }
 
-    let configuration: Configuration<App> =
-        Client::with_config(client_config).request().await.unwrap();
+    let app = Client::new(client_config)
+        .request()
+        .await
+        .unwrap()
+        .into_first()
+        .unwrap()
+        .deserialize_configurations::<App>()
+        .unwrap();
 
-    assert_eq!(configuration.timeout, 100);
+    assert_eq!(app.timeout, 100);
 }
 
 #[async_std::test]
@@ -130,8 +163,14 @@ async fn test_client_request_5() {
         ..Default::default()
     };
 
-    let configuration: Configuration<serde_json::Value> =
-        Client::with_config(client_config).request().await.unwrap();
+    let configuration = Client::new(client_config)
+        .request()
+        .await
+        .unwrap()
+        .into_first()
+        .unwrap()
+        .deserialize_configurations::<serde_json::Value>()
+        .unwrap();
 
     assert_eq!(configuration["timeout"].as_i64().unwrap(), 100);
 }
@@ -146,8 +185,14 @@ async fn test_client_request_6() {
         ..Default::default()
     };
 
-    let configuration: Configuration<String> =
-        Client::with_config(client_config).request().await.unwrap();
+    let response = Client::new(client_config)
+        .request()
+        .await
+        .unwrap()
+        .into_first()
+        .unwrap();
+
+    let configuration = response.get_configurations_content().unwrap();
 
     assert_eq!(&*configuration, "timeout is 100");
 }
@@ -163,8 +208,14 @@ async fn test_client_request_7() {
         ..Default::default()
     };
 
-    let configuration: Configuration<HashMap<String, String>> =
-        Client::with_config(client_config).request().await.unwrap();
+    let configuration = Client::new(client_config)
+        .request()
+        .await
+        .unwrap()
+        .into_first()
+        .unwrap()
+        .deserialize_configurations::<HashMap<String, String>>()
+        .unwrap();
 
     assert_eq!(configuration["timeout"], "100");
 }
@@ -180,9 +231,13 @@ async fn test_client_request_8() {
         ..Default::default()
     };
 
-    let configuration: Configuration<HashMap<String, String>> = Client::with_config(client_config)
+    let configuration = Client::new(client_config)
         .request_with_extras_query(Some(&[("noAudit", "1")]))
         .await
+        .unwrap()
+        .into_first()
+        .unwrap()
+        .deserialize_configurations::<HashMap<String, String>>()
         .unwrap();
 
     assert_eq!(configuration["timeout"], "100");
