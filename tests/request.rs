@@ -91,11 +91,11 @@ async fn test_client_request_2() {
     };
 
     let configuration = Client::new(client_config)
-        .unwrap()
         .request()
         .await
         .unwrap()
         .into_first()
+        .unwrap()
         .deserialize_configurations::<serde_yaml::Value>()
         .unwrap();
 
