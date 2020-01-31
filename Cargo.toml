@@ -40,6 +40,7 @@ systemstat = { version = "0.1.5", optional = true }
 
 [dev-dependencies]
 env_logger = "0.7.1"
+hyper = "0.13.2"
 tokio = { version = "0.2.11", features = ["full"] }
 
 [features]
