@@ -2,7 +2,7 @@ use apollo_client::{Client, ClientConfig, IpValue};
 use futures_timer::Delay;
 use std::time::Duration;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() {
     env_logger::init();
 

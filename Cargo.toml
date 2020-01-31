@@ -39,8 +39,8 @@ serde_yaml = { version = "0.8.11", optional = true }
 systemstat = { version = "0.1.5", optional = true }
 
 [dev-dependencies]
-async-std = { version = "1.4.0", features = ["attributes"] }
 env_logger = "0.7.1"
+tokio = { version = "0.2.11", features = ["full"] }
 
 [features]
 default = ["host-ip", "host-name"]

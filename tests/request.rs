@@ -6,7 +6,7 @@ use serde_derive::Deserialize;
 
 mod common;
 
-#[async_std::test]
+#[tokio::test]
 async fn test_client_request() -> ClientResult<()> {
     common::setup();
 
@@ -59,7 +59,7 @@ async fn test_client_request() -> ClientResult<()> {
 }
 
 #[cfg(not(feature = "yaml"))]
-#[async_std::test]
+#[tokio::test]
 #[should_panic(expected = "You have to enable feature `yaml` for parsing this configuration kind.")]
 async fn test_client_request_2() {
     common::setup();
@@ -80,7 +80,7 @@ async fn test_client_request_2() {
 }
 
 #[cfg(feature = "yaml")]
-#[async_std::test]
+#[tokio::test]
 async fn test_client_request_2() {
     common::setup();
 
@@ -104,7 +104,7 @@ async fn test_client_request_2() {
 }
 
 #[cfg(not(feature = "xml"))]
-#[async_std::test]
+#[tokio::test]
 #[should_panic(expected = "You have to enable feature `xml` for parsing this configuration kind.")]
 async fn test_client_request_3() {
     common::setup();
@@ -126,7 +126,7 @@ async fn test_client_request_3() {
 }
 
 #[cfg(feature = "xml")]
-#[async_std::test]
+#[tokio::test]
 async fn test_client_request_4() {
     common::setup();
 
@@ -153,7 +153,7 @@ async fn test_client_request_4() {
     assert_eq!(app.timeout, 100);
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_client_request_5() {
     common::setup();
 
@@ -175,7 +175,7 @@ async fn test_client_request_5() {
     assert_eq!(configuration["timeout"].as_i64().unwrap(), 100);
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_client_request_6() {
     common::setup();
 
@@ -197,7 +197,7 @@ async fn test_client_request_6() {
     assert_eq!(&*configuration, "timeout is 100");
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_client_request_7() {
     common::setup();
 
@@ -220,7 +220,7 @@ async fn test_client_request_7() {
     assert_eq!(configuration["timeout"], "100");
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_client_request_8() {
     common::setup();
 

@@ -1,9 +1,38 @@
 use apollo_client::{Client, ClientConfig, ClientResult, Response};
+use futures_timer::Delay;
+use std::time::Duration;
+use std::process::exit;
 
 mod common;
 
-#[async_std::test]
-async fn test_client_listen() -> ClientResult<()> {
+#[tokio::test]
+/// Test the situation where just one namespace and the type is `.properties`.
+async fn test_client_listen_0() -> ClientResult<()> {
+    common::setup();
+    common::test_timeout(Duration::from_secs(5));
+
+    let client_config = ClientConfig {
+        app_id: "SampleApp",
+        namespace_names: vec!["application"],
+        ..Default::default()
+    };
+
+    let result: Vec<Response> = Client::new(client_config)
+        .listen_and_request()
+        .await?
+        .into_vec_response()
+        .unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(&result[0].app_id, "SampleApp");
+    assert_eq!(&result[0].cluster, "default");
+    assert_eq!(&result[0].namespace_name, "application");
+    assert_eq!(&result[0].configurations["timeout"], "100");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_client_listen_1() -> ClientResult<()> {
     common::setup();
 
     let client_config = ClientConfig {
@@ -26,7 +55,7 @@ async fn test_client_listen() -> ClientResult<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn test_client_listen_2() -> ClientResult<()> {
     common::setup();
 

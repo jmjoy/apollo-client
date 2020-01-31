@@ -1,6 +1,6 @@
 use apollo_client::{Client, ClientConfig, ClientResult, IpValue};
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> ClientResult<()> {
     env_logger::init();
 

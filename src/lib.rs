@@ -53,6 +53,9 @@ const DEFAULT_CONFIG_TIMEOUT: Duration = Duration::from_secs(30);
 /// Should be longer than server side's long polling timeout, which is now 60 seconds.
 const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(90);
 
+/// First listen timeout.
+const FIRST_LISTEN_TIMEOUT: Duration = Duration::from_secs(3);
+
 /// Apollo client crate side `Result`.
 pub type ClientResult<T> = Result<T, ClientError>;
 
@@ -590,8 +593,10 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         let url = self.get_listen_url(&self.notifications)?;
         log::debug!("Request apollo notifications api: {}", &url);
 
+        let timeout = if self.has_notify { DEFAULT_LISTEN_TIMEOUT } else { FIRST_LISTEN_TIMEOUT };
+
         let mut response =
-            match select(client.get_async(url), Delay::new(DEFAULT_LISTEN_TIMEOUT)).await {
+            match select(client.get_async(url), Delay::new(timeout)).await {
                 Either::Left((response, ..)) => response?,
                 Either::Right(_) => Err(ClientError::ApolloListenTimeout)?,
             };
@@ -627,21 +632,29 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         loop {
             match self.listen_once().await {
                 Ok(namespaces) => {
-                    let result = if self.has_notify {
+                    return if self.has_notify {
                         self.request_with_extras_query_and_namespaces(extras_query, &namespaces)
                             .await
                     } else {
+                        self.has_notify = true;
                         self.request_with_extras_query_and_namespaces(
                             extras_query,
                             self.client_config.namespace_names.as_ref(),
                         )
                         .await
                     };
-                    self.has_notify = true;
-                    return result;
                 }
                 Err(ClientError::ApolloNotModified) => {}
-                Err(ClientError::ApolloListenTimeout) => {}
+                Err(ClientError::ApolloListenTimeout) => {
+                    if !self.has_notify {
+                        self.has_notify = true;
+
+                        return self.request_with_extras_query_and_namespaces(
+                            extras_query,
+                            self.client_config.namespace_names.as_ref(),
+                        ).await;
+                    }
+                }
                 Err(e) => Err(e)?,
             }
         }
