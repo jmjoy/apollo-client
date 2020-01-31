@@ -12,7 +12,11 @@ async fn test_client_listen() -> ClientResult<()> {
         ..Default::default()
     };
 
-    let result: Vec<Response> = Client::new(client_config).listen_and_request().await?.into_vec_response()?;
+    let result: Vec<Response> = Client::new(client_config)
+        .listen_and_request()
+        .await?
+        .into_vec_response()
+        .unwrap();
     assert_eq!(result.len(), 2);
     assert_eq!(&result[0].app_id, "SampleApp");
     assert_eq!(&result[0].cluster, "default");
@@ -34,7 +38,8 @@ async fn test_client_listen_2() -> ClientResult<()> {
 
     let result: Vec<Response> = Client::new(client_config)
         .listen_and_request_with_extras_query(Some(&[("noAudit", "1")]))
-        .await?.into_vec_response()?;
+        .await?
+        .into_vec_response()?;
     assert_eq!(result.len(), 2);
     assert_eq!(&result[0].app_id, "SampleApp");
     assert_eq!(&result[0].cluster, "default");

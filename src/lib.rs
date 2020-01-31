@@ -41,8 +41,8 @@ use isahc::config::{DnsCache, VersionNegotiation};
 #[cfg(feature = "regex")]
 use regex::Regex;
 
-use std::ops::Deref;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 #[cfg(test)]
 mod tests;
@@ -369,7 +369,11 @@ impl Responses {
     }
 
     pub fn into_map_response(self) -> ClientResult<HashMap<String, Response>> {
-        Ok(self.into_vec_response()?.into_iter().map(|response| (response.namespace_name.clone(), response)).collect())
+        Ok(self
+            .into_vec_response()?
+            .into_iter()
+            .map(|response| (response.namespace_name.clone(), response))
+            .collect())
     }
 }
 
@@ -495,6 +499,7 @@ fn update_notifications(this: &mut Notifications, newer: Notifications) {
 pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
     client_config: ClientConfig<T, V>,
     notifications: Notifications,
+    has_notify: bool,
 }
 
 impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
@@ -512,6 +517,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         Self {
             client_config,
             notifications,
+            has_notify: false,
         }
     }
 
@@ -542,8 +548,9 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         let namespace_names = namespace_names.as_ref();
         let mut futures = Vec::with_capacity(namespace_names.len());
         for namespace_name in namespace_names {
+            let namespace_name = namespace_name.as_ref();
             futures.push(async move {
-                let url = self.get_config_url(namespace_name.as_ref(), None, extras_query);
+                let url = self.get_config_url(namespace_name, None, extras_query);
                 match url {
                     Ok(url) => {
                         log::debug!("Request apollo config api: {}", &url);
@@ -592,11 +599,8 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         Self::handle_response_status(&response)?;
 
         let bodies = response.text_async().await?;
+
         let notifications: Notifications = serde_json::from_str(&bodies)?;
-        log::trace!(
-            "Response apollo notifications bodies: {:?}",
-            &self.notifications
-        );
 
         let notify_namespaces = notifications
             .iter()
@@ -623,9 +627,18 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         loop {
             match self.listen_once().await {
                 Ok(namespaces) => {
-                    return self
-                        .request_with_extras_query_and_namespaces(extras_query, &namespaces)
-                        .await;
+                    let result = if self.has_notify {
+                        self.request_with_extras_query_and_namespaces(extras_query, &namespaces)
+                            .await
+                    } else {
+                        self.request_with_extras_query_and_namespaces(
+                            extras_query,
+                            self.client_config.namespace_names.as_ref(),
+                        )
+                        .await
+                    };
+                    self.has_notify = true;
+                    return result;
                 }
                 Err(ClientError::ApolloNotModified) => {}
                 Err(ClientError::ApolloListenTimeout) => {}

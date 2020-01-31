@@ -221,4 +221,3 @@ fn test_canonicalize_namespace() {
     assert_eq!(canonicalize_namespace("foo.txt"), "foo.txt");
     assert_eq!(canonicalize_namespace("foo"), "foo.properties");
 }
-
