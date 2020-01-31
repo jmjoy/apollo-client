@@ -75,7 +75,7 @@ fn test_client_get_config_url() -> ClientResult<()> {
         app_id: "test_app_id".to_string(),
         ..Default::default()
     };
-    let client = Client::new(client_config)?;
+    let client = Client::new(client_config);
     let url = client.get_config_url("test_namespace", None, None)?;
     assert_eq!(
         &url,
@@ -120,7 +120,7 @@ fn test_client_get_config_url_4() -> ClientResult<()> {
         ip: Some(IpValue::Custom("???")),
         ..Default::default()
     };
-    let client = Client::new(client_config)?;
+    let client = Client::new(client_config);
     let url = client.get_config_url("test_namespace", Some("test-release"), None)?;
     assert_eq!(&url, "http://localhost:8080/configs/test_app_id/default/test_namespace?releaseKey=test-release&ip=%3F%3F%3F");
     Ok(())
@@ -132,7 +132,7 @@ fn test_client_get_config_url_5() -> ClientResult<()> {
         app_id: "test_app_id",
         ..Default::default()
     };
-    let client = Client::new(client_config)?;
+    let client = Client::new(client_config);
     let url = client.get_config_url(
         "test_namespace",
         Some("test-release"),
@@ -149,7 +149,7 @@ fn test_client_get_config_url_6() -> ClientResult<()> {
         ip: Some(IpValue::Custom("127.0.0.1")),
         ..Default::default()
     };
-    let client = Client::new(client_config)?;
+    let client = Client::new(client_config);
     let url = client.get_config_url("test_namespace", None, Some(&[("noAudit", "1")]))?;
     assert_eq!(
         &url,
@@ -162,7 +162,7 @@ fn test_client_get_config_url_common<'a>(
     client_config: ClientConfig<&'a str, Vec<&'a str>>,
     expect: &str,
 ) -> ClientResult<()> {
-    let client = Client::new(client_config)?;
+    let client = Client::new(client_config);
     let url = client.get_config_url("test_namespace", None, None)?;
     assert_eq!(&url, expect);
     Ok(())
@@ -205,8 +205,20 @@ fn test_client_get_listen_url_common(
         app_id: "test_app_id",
         ..Default::default()
     };
-    let client = Client::new(client_config)?;
+    let client = Client::new(client_config);
     let url = client.get_listen_url(notifications)?;
     assert_eq!(&url, expect);
     Ok(())
 }
+
+#[test]
+fn test_canonicalize_namespace() {
+    assert_eq!(canonicalize_namespace("foo.properties"), "foo.properties");
+    assert_eq!(canonicalize_namespace("foo.xml"), "foo.xml");
+    assert_eq!(canonicalize_namespace("foo.yaml"), "foo.yaml");
+    assert_eq!(canonicalize_namespace("foo.yml"), "foo.yml");
+    assert_eq!(canonicalize_namespace("foo.json"), "foo.json");
+    assert_eq!(canonicalize_namespace("foo.txt"), "foo.txt");
+    assert_eq!(canonicalize_namespace("foo"), "foo.properties");
+}
+

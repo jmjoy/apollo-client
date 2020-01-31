@@ -42,6 +42,7 @@ use isahc::config::{DnsCache, VersionNegotiation};
 use regex::Regex;
 
 use std::ops::Deref;
+use std::collections::HashMap;
 
 #[cfg(test)]
 mod tests;
@@ -362,6 +363,14 @@ impl Responses {
             None => Err(ClientError::EmptyResponses),
         }
     }
+
+    pub fn into_vec_response(self) -> ClientResult<Vec<Response>> {
+        self.into_inner().into_iter().collect()
+    }
+
+    pub fn into_map_response(self) -> ClientResult<HashMap<String, Response>> {
+        Ok(self.into_vec_response()?.into_iter().map(|response| (response.namespace_name.clone(), response)).collect())
+    }
 }
 
 impl Deref for Responses {
@@ -369,12 +378,6 @@ impl Deref for Responses {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
-    }
-}
-
-impl Into<ClientResult<Response>> for Responses {
-    fn into(self) -> Result<Response, ClientError> {
-        self.into_first()
     }
 }
 
