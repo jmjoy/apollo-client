@@ -51,6 +51,9 @@ yaml = ["serde_yaml"]
 xml = ["serde-xml-rs"]
 full = ["default", "yaml", "xml"]
 
+# Internal feature for test suite.
+mock-listen = []
+
 [[example]]
 name = "basic"
 path = "examples/basic.rs"
@@ -60,6 +63,11 @@ required-features = ["host-name"]
 name = "listen"
 path = "examples/listen.rs"
 required-features = ["host-ip", "yaml"]
+
+[[test]]
+name = "listen_change"
+path = "tests/listen_change.rs"
+required-features = ["mock-listen"]
 
 [package.metadata.docs.rs]
 features = ["full"]

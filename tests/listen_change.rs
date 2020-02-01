@@ -1,3 +1,5 @@
+use apollo_client::{Client, ClientConfig};
+use std::collections::HashMap;
 use std::time::Duration;
 
 mod common;
@@ -6,10 +8,42 @@ mod common;
 async fn listen_change_0() {
     common::setup();
     common::test_timeout(Duration::from_secs(10));
-    common::new_mock_server(8090);
+    let mut receiver = common::new_mock_server(8090);
+    receiver.recv().await.unwrap();
 
-    use isahc::ResponseExt;
-    let mut response = isahc::get_async("http://localhost:8090").await.unwrap();
-    let text = response.text_async().await.unwrap();
-    dbg!(text);
+    let client_config = ClientConfig {
+        config_server_url: "http://localhost:8090",
+        app_id: "SampleApp",
+        namespace_names: vec!["application", "application.json"],
+        ..Default::default()
+    };
+
+    let mut client = Client::new(client_config);
+
+    // Request response once.
+    let responses = client.listen_and_request().await.unwrap().into_inner();
+    assert_eq!(responses.len(), 2);
+    assert_eq!(
+        responses[0]
+            .as_ref()
+            .unwrap()
+            .deserialize_configurations::<HashMap<String, String>>()
+            .unwrap()
+            .get("namespace")
+            .unwrap(),
+        "application"
+    );
+    assert_eq!(
+        responses[1]
+            .as_ref()
+            .unwrap()
+            .deserialize_configurations::<HashMap<String, String>>()
+            .unwrap()
+            .get("namespace")
+            .unwrap(),
+        "application.json"
+    );
+
+    let responses = client.listen_and_request().await.unwrap();
+    assert_eq!(responses.len(), 2);
 }

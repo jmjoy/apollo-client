@@ -51,6 +51,9 @@ mod tests;
 const DEFAULT_CONFIG_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Should be longer than server side's long polling timeout, which is now 60 seconds.
+#[cfg(feature = "mock-listen")]
+const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(3);
+#[cfg(not(feature = "mock-listen"))]
 const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// First listen timeout.
@@ -389,7 +392,7 @@ impl Deref for Responses {
 }
 
 /// Apollo config api response.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
     pub app_id: String,
@@ -593,13 +596,16 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         let url = self.get_listen_url(&self.notifications)?;
         log::debug!("Request apollo notifications api: {}", &url);
 
-        let timeout = if self.has_notify { DEFAULT_LISTEN_TIMEOUT } else { FIRST_LISTEN_TIMEOUT };
+        let timeout = if self.has_notify {
+            DEFAULT_LISTEN_TIMEOUT
+        } else {
+            FIRST_LISTEN_TIMEOUT
+        };
 
-        let mut response =
-            match select(client.get_async(url), Delay::new(timeout)).await {
-                Either::Left((response, ..)) => response?,
-                Either::Right(_) => Err(ClientError::ApolloListenTimeout)?,
-            };
+        let mut response = match select(client.get_async(url), Delay::new(timeout)).await {
+            Either::Left((response, ..)) => response?,
+            Either::Right(_) => Err(ClientError::ApolloListenTimeout)?,
+        };
 
         Self::handle_response_status(&response)?;
 
@@ -649,10 +655,12 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
                     if !self.has_notify {
                         self.has_notify = true;
 
-                        return self.request_with_extras_query_and_namespaces(
-                            extras_query,
-                            self.client_config.namespace_names.as_ref(),
-                        ).await;
+                        return self
+                            .request_with_extras_query_and_namespaces(
+                                extras_query,
+                                self.client_config.namespace_names.as_ref(),
+                            )
+                            .await;
                     }
                 }
                 Err(e) => Err(e)?,

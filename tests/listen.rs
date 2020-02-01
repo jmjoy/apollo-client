@@ -1,7 +1,7 @@
 use apollo_client::{Client, ClientConfig, ClientResult, Response};
 use futures_timer::Delay;
-use std::time::Duration;
 use std::process::exit;
+use std::time::Duration;
 
 mod common;
 
