@@ -221,3 +221,35 @@ fn test_canonicalize_namespace() {
     assert_eq!(canonicalize_namespace("foo.txt"), "foo.txt");
     assert_eq!(canonicalize_namespace("foo"), "foo.properties");
 }
+
+#[test]
+fn test_infer_namespace_kind() {
+    assert_eq!(
+        NamespaceKind::infer_namespace_kind("foo.properties"),
+        NamespaceKind::Properties
+    );
+    assert_eq!(
+        NamespaceKind::infer_namespace_kind("foo.xml"),
+        NamespaceKind::Xml
+    );
+    assert_eq!(
+        NamespaceKind::infer_namespace_kind("foo.yaml"),
+        NamespaceKind::Yaml
+    );
+    assert_eq!(
+        NamespaceKind::infer_namespace_kind("foo.yml"),
+        NamespaceKind::Yaml
+    );
+    assert_eq!(
+        NamespaceKind::infer_namespace_kind("foo.json"),
+        NamespaceKind::Json
+    );
+    assert_eq!(
+        NamespaceKind::infer_namespace_kind("foo.txt"),
+        NamespaceKind::Txt
+    );
+    assert_eq!(
+        NamespaceKind::infer_namespace_kind("foo"),
+        NamespaceKind::Properties
+    );
+}
