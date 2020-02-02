@@ -40,5 +40,5 @@ You can find some examples in [the examples directory](https://github.com/jmjoy/
 
 ## License
 
-木兰宽松许可证, 第1版
+Unlicense.
 
