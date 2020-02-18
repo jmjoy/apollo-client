@@ -24,8 +24,9 @@ futures = { version = "0.3.1", features = ["alloc"] }
 futures-timer = "2.0.2"
 hostname = { version = "0.3.0", optional = true }
 http = "0.1.21"
+hyper = { version = "0.13.2", optional = true }
 indexmap = { version = "1.3.1", features = ["serde-1"] }
-isahc = { version = "0.8.2", default-features = false, features = ["static-curl"] }
+isahc = { version = "0.8.2", default-features = false, features = ["static-curl"], optional = true }
 lazy_static = "1.4.0"
 log = "0.4.8"
 quick-error = "1.2.2"
@@ -44,12 +45,18 @@ hyper = "0.13.2"
 tokio = { version = "0.2.11", features = ["full"] }
 
 [features]
-default = ["host-ip", "host-name"]
+default = ["host-ip", "host-name", "curl"]
+default-curl = ["host-ip", "host-name", "curl"]
+default-hyper = ["host-ip", "host-name", "hyper"]
 host-ip = ["systemstat", "regex"]
 host-name = ["hostname"]
 yaml = ["serde_yaml"]
 xml = ["serde-xml-rs"]
+curl = ["isahc"]
+# hyper = ["hyper"]
 full = ["default", "yaml", "xml"]
+full-curl = ["default-curl", "yaml", "xml"]
+full-hyper = ["default-hyper", "yaml", "xml"]
 
 # Internal feature for test suite.
 mock-listen = []
