@@ -12,6 +12,7 @@ on:
 env:
   RUST_BACKTRACE: 1
   RUST_LOG: apollo_client
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   bulid-and-test:
