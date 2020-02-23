@@ -7,7 +7,7 @@ on:
       - develop
     pull_request:
       branches:
-      - master
+      - "**"
 
 env:
   RUST_BACKTRACE: 1
@@ -15,36 +15,43 @@ env:
 
 jobs:
   bulid-and-test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
+        features:
+        - ""
+        - --no-default-features --features with-curl
+        - --no-default-features --features with-hyper
+        - --features with-curl
+        - --features with-hyper
+        - --features xml
+        - --features yaml
+        - --features full-curl
+        - --features full-hyper
+        - --all-features
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     - name: Docker compose
       run: docker-compose up -d
     - name: Build
-      run: cargo build --verbose
-    - name: Build with no default features
-      run: cargo build --no-default-features --verbose
-    - name: Build with feature xml
-      run: cargo build --features xml --verbose
-    - name: Build with feature yaml
-      run: cargo build --features yaml --verbose
-    - name: Build with feature full
-      run: cargo build --features full --verbose
+      run: cargo build --verbose ${{ matrix.features }}
     - name: Test
-      run: cargo test --verbose
-    - name: Test with no default features
-      run: cargo test --no-default-features --verbose
-    - name: Test with feature xml
-      run: cargo test --features xml --verbose
-    - name: Test with feature yaml
-      run: cargo test --features yaml --verbose
-    - name: Test with feature full
-      run: cargo test --features full --verbose
+      run: cargo test --verbose ${{ matrix.features }}
 
   check-fmt-and-docs:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: rustup component add rustfmt
         run: rustup component add rustfmt
       - name: fmt
