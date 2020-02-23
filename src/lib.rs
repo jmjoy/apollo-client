@@ -24,11 +24,7 @@
 //! You can find some examples in [the examples directory](https://github.com/jmjoy/apollo-client/tree/master/examples).
 //!
 use futures::future::{join_all, select, Either};
-use futures_timer::Delay;
-use http::StatusCode;
 use indexmap::map::IndexMap;
-use isahc::HttpClientBuilder;
-use isahc::ResponseExt;
 use quick_error::quick_error;
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
@@ -37,7 +33,11 @@ use std::fmt::{Debug, Display};
 use std::time::Duration;
 use std::{fmt, io};
 
-use isahc::config::{DnsCache, VersionNegotiation};
+use futures::pin_mut;
+
+use std::str::Utf8Error;
+
+// use isahc::config::{DnsCache, VersionNegotiation};
 #[cfg(feature = "regex")]
 use regex::Regex;
 
@@ -72,10 +72,28 @@ quick_error! {
             display("I/O error: {}", err)
             cause(err)
         }
-        Isahc(err: isahc::Error) {
+        Utf8(err: Utf8Error) {
             from()
+            description("utf-8 error")
+            display("UTF-8 error: {}", err)
+            cause(err)
+        }
+        #[cfg(feature = "with-curl")]
+        Isahc(err: isahc::Error) {
             description("isahc error")
             display("Isahc error: {}", err)
+            cause(err)
+        }
+        #[cfg(feature = "with-hyper")]
+        Hyper(err: hyper::error::Error) {
+            description("hyper error")
+            display("Hyper error: {}", err)
+            cause(err)
+        }
+        #[cfg(feature = "with-hyper")]
+        InvalidUri(err: http_02::uri::InvalidUri) {
+            description("invalid uri")
+            display("Invalid uri: {}", err)
             cause(err)
         }
         SerdeJson(err: serde_json::error::Error) {
@@ -126,7 +144,7 @@ quick_error! {
             description("apollo not modified")
             display("Apollo not modified")
         }
-        ApolloOtherError(code: StatusCode) {
+        ApolloOtherError(code: u16) {
             description("apollo other error")
             display("apollo other error, status code: {}", code)
         }
@@ -148,6 +166,27 @@ impl From<serde_yaml::Error> for ClientError {
 impl From<serde_xml_rs::Error> for ClientError {
     fn from(err: serde_xml_rs::Error) -> ClientError {
         ClientError::SerdeXml(err)
+    }
+}
+
+#[cfg(feature = "with-curl")]
+impl From<isahc::Error> for ClientError {
+    fn from(err: isahc::Error) -> ClientError {
+        ClientError::Isahc(err)
+    }
+}
+
+#[cfg(feature = "with-hyper")]
+impl From<hyper::error::Error> for ClientError {
+    fn from(err: hyper::error::Error) -> ClientError {
+        ClientError::Hyper(err)
+    }
+}
+
+#[cfg(feature = "with-hyper")]
+impl From<http_02::uri::InvalidUri> for ClientError {
+    fn from(err: http_02::uri::InvalidUri) -> ClientError {
+        ClientError::InvalidUri(err)
     }
 }
 
@@ -222,7 +261,7 @@ impl Default for ClientConfig<String, Vec<String>> {
             namespace_names: client_config
                 .namespace_names
                 .iter()
-                .map(|s| s.to_string())
+                .map(|s| (*s).to_string())
                 .collect(),
             ip: Default::default(),
         }
@@ -257,7 +296,7 @@ impl<S: AsRef<str>> IpValue<S> {
                         hostname::get()
                             .ok()
                             .and_then(|hostname| hostname.into_string().ok())
-                            .unwrap_or("unknown".to_string())
+                            .unwrap_or_else(|| "unknown".to_string())
                     };
                 }
                 &HOSSNAME
@@ -506,6 +545,31 @@ pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
     client_config: ClientConfig<T, V>,
     notifications: Notifications,
     has_notify: bool,
+    scenario: Scenario,
+}
+
+/// Scenario for Client.
+#[derive(Clone, Copy)]
+pub enum Scenario {
+    /// Use `hyper` to handle http request, and `tokio::time::delay_for` to handle sleeing.
+    #[cfg(feature = "with-hyper")]
+    Hyper,
+
+    /// Use `isahc` to handle http request, and `futures-timer` to handle sleeing.
+    #[cfg(feature = "with-curl")]
+    Curl,
+}
+
+impl Default for Scenario {
+    #[cfg(feature = "with-hyper")]
+    fn default() -> Self {
+        Scenario::Hyper
+    }
+
+    #[cfg(not(feature = "with-hyper"))]
+    fn default() -> Self {
+        Scenario::Curl
+    }
 }
 
 impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
@@ -519,11 +583,16 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     /// let _ = Client::new(client_config);
     /// ```
     pub fn new(client_config: ClientConfig<S, V>) -> Self {
+        Self::new_with_scenario(client_config, Default::default())
+    }
+
+    pub fn new_with_scenario(client_config: ClientConfig<S, V>, scenario: Scenario) -> Self {
         let notifications = initialize_notifications(client_config.namespace_names.as_ref());
         Self {
             client_config,
             notifications,
             has_notify: false,
+            scenario,
         }
     }
 
@@ -555,12 +624,13 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         let mut futures = Vec::with_capacity(namespace_names.len());
         for namespace_name in namespace_names {
             let namespace_name = namespace_name.as_ref();
+            let scenario = self.scenario;
             futures.push(async move {
                 let url = self.get_config_url(namespace_name, None, extras_query);
                 match url {
                     Ok(url) => {
                         log::debug!("Request apollo config api: {}", &url);
-                        Self::request_bodies(&url).await
+                        Self::request_bodies(scenario, &url).await
                     }
                     Err(e) => Err(e.into()),
                 }
@@ -571,28 +641,27 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         Ok(Responses::from_bodies(bodies))
     }
 
-    async fn request_bodies(url: &str) -> ClientResult<String> {
-        let client = HttpClientBuilder::new()
-            .version_negotiation(VersionNegotiation::http11())
-            .dns_cache(DnsCache::Disable)
-            .timeout(DEFAULT_CONFIG_TIMEOUT)
-            .build()?;
+    async fn request_bodies(scenario: Scenario, url: impl AsRef<str>) -> ClientResult<String> {
+        match scenario {
+            #[cfg(feature = "with-curl")]
+            Scenario::Curl => imp::curl::request_bodies(url.as_ref()).await,
+            #[cfg(feature = "with-hyper")]
+            Scenario::Hyper => imp::hyper::request_bodies(url.as_ref()).await,
+        }
+    }
 
-        let mut response = client.get_async(url).await?;
-        Self::handle_response_status(&response)?;
-        let bodies = response.text_async().await?;
-        Ok(bodies)
+    async fn sleep(scenario: Scenario, dur: Duration) {
+        match scenario {
+            #[cfg(feature = "with-curl")]
+            Scenario::Curl => imp::curl::sleep(dur).await,
+            #[cfg(feature = "with-hyper")]
+            Scenario::Hyper => imp::hyper::sleep(dur).await,
+        }
     }
 
     /// Request apollo notification api just once.
     /// Return the namespace names if ok.
     pub async fn listen_once(&mut self) -> ClientResult<Vec<String>> {
-        let client = HttpClientBuilder::new()
-            .version_negotiation(VersionNegotiation::http11())
-            .dns_cache(DnsCache::Disable)
-            .timeout(DEFAULT_LISTEN_TIMEOUT + Duration::from_secs(10))
-            .build()?;
-
         let url = self.get_listen_url(&self.notifications)?;
         log::debug!("Request apollo notifications api: {}", &url);
 
@@ -602,14 +671,15 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
             FIRST_LISTEN_TIMEOUT
         };
 
-        let mut response = match select(client.get_async(url), Delay::new(timeout)).await {
-            Either::Left((response, ..)) => response?,
+        let fut1 = Self::request_bodies(self.scenario, url);
+        let fut2 = Self::sleep(self.scenario, timeout);
+        pin_mut!(fut1);
+        pin_mut!(fut2);
+
+        let bodies = match select(fut1, fut2).await {
+            Either::Left((bodies, ..)) => bodies?,
             Either::Right(_) => Err(ClientError::ApolloListenTimeout)?,
         };
-
-        Self::handle_response_status(&response)?;
-
-        let bodies = response.text_async().await?;
 
         let notifications: Notifications = serde_json::from_str(&bodies)?;
 
@@ -668,19 +738,6 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         }
     }
 
-    fn handle_response_status<T>(response: &http::Response<T>) -> ClientResult<()> {
-        let status = response.status();
-        if !status.is_success() {
-            match response.status() {
-                StatusCode::NOT_MODIFIED => Err(ClientError::ApolloNotModified)?,
-                StatusCode::NOT_FOUND => Err(ClientError::ApolloConfigNotFound)?,
-                StatusCode::INTERNAL_SERVER_ERROR => Err(ClientError::ApolloServerError)?,
-                status => Err(ClientError::ApolloOtherError(status))?,
-            }
-        }
-        Ok(())
-    }
-
     fn get_config_url(
         &self,
         namespace_name: &str,
@@ -732,5 +789,87 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
             cluster_name = self.client_config.cluster_name,
             notifications = notifications,
         ))
+    }
+}
+
+pub(crate) mod imp {
+    #[cfg(feature = "with-curl")]
+    pub(crate) mod curl {
+        use crate::DEFAULT_CONFIG_TIMEOUT;
+        use crate::{ClientError, ClientResult};
+        use futures_timer::Delay;
+        use http_01::StatusCode;
+        use isahc::ResponseExt;
+        use isahc::{
+            config::{DnsCache, VersionNegotiation},
+            HttpClientBuilder,
+        };
+        use std::time::Duration;
+
+        pub(crate) async fn sleep(dur: Duration) {
+            Delay::new(dur).await
+        }
+
+        pub(crate) async fn request_bodies(url: &str) -> ClientResult<String> {
+            let client = HttpClientBuilder::new()
+                .version_negotiation(VersionNegotiation::http11())
+                .dns_cache(DnsCache::Disable)
+                .timeout(DEFAULT_CONFIG_TIMEOUT)
+                .build()?;
+
+            let mut response = client.get_async(url).await?;
+            handle_response_status(&response)?;
+            let bodies = response.text_async().await?;
+            Ok(bodies)
+        }
+
+        fn handle_response_status<T>(response: &http_01::Response<T>) -> ClientResult<()> {
+            let status = response.status();
+            if !status.is_success() {
+                match response.status() {
+                    StatusCode::NOT_MODIFIED => Err(ClientError::ApolloNotModified)?,
+                    StatusCode::NOT_FOUND => Err(ClientError::ApolloConfigNotFound)?,
+                    StatusCode::INTERNAL_SERVER_ERROR => Err(ClientError::ApolloServerError)?,
+                    status => Err(ClientError::ApolloOtherError(status.as_u16()))?,
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[cfg(feature = "with-hyper")]
+    pub(crate) mod hyper {
+        use crate::{ClientError, ClientResult};
+        use hyper::body::Buf;
+        use hyper::{body, Client, StatusCode};
+        use std::str;
+        use std::time::Duration;
+        use tokio::time::delay_for;
+
+        pub(crate) async fn sleep(dur: Duration) {
+            delay_for(dur).await
+        }
+
+        pub(crate) async fn request_bodies(url: &str) -> ClientResult<String> {
+            let client = Client::new();
+            let response = client.get(url.parse()?).await?;
+            handle_response_status(&response)?;
+            let buf = body::aggregate(response).await?;
+            let bodies = str::from_utf8(buf.bytes())?.to_owned();
+            Ok(bodies)
+        }
+
+        fn handle_response_status<T>(response: &hyper::Response<T>) -> ClientResult<()> {
+            let status = response.status();
+            if !status.is_success() {
+                match response.status() {
+                    StatusCode::NOT_MODIFIED => Err(ClientError::ApolloNotModified)?,
+                    StatusCode::NOT_FOUND => Err(ClientError::ApolloConfigNotFound)?,
+                    StatusCode::INTERNAL_SERVER_ERROR => Err(ClientError::ApolloServerError)?,
+                    status => Err(ClientError::ApolloOtherError(status.as_u16()))?,
+                }
+            }
+            Ok(())
+        }
     }
 }

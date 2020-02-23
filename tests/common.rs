@@ -24,6 +24,7 @@ pub fn setup() {
     });
 }
 
+#[allow(dead_code)]
 pub fn test_timeout(dur: Duration) {
     tokio::spawn(async move {
         Delay::new(dur.clone()).await;
@@ -50,6 +51,7 @@ quick_error! {
     }
 }
 
+#[allow(dead_code)]
 pub fn new_mock_server(port: u16) -> mpsc::Receiver<()> {
     let (mut sender, receiver) = mpsc::channel(1);
 
