@@ -566,7 +566,7 @@ impl Default for Scenario {
         Scenario::Hyper
     }
 
-    #[cfg(not(feature = "with-hyper"))]
+    #[cfg(all(not(feature = "with-hyper"), feature = "with-curl"))]
     fn default() -> Self {
         Scenario::Curl
     }
