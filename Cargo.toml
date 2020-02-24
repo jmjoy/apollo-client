@@ -37,7 +37,7 @@ mock-listen = []
 
 [dependencies]
 futures = { version = "0.3.1", features = ["alloc"] }
-futures-timer = { version = "2.0.2", optional = true }
+futures-timer = { version = "3.0.2", optional = true }
 hostname = { version = "0.3.0", optional = true }
 http-01 = { package = "http", version = "0.1.21", optional = true }
 http-02 = { package = "http", version = "0.2.0", optional = true }

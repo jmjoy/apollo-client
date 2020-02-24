@@ -630,7 +630,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
                 match url {
                     Ok(url) => {
                         log::debug!("Request apollo config api: {}", &url);
-                        Self::request_bodies(scenario, &url).await
+                        Self::request_bodies(scenario, &url, DEFAULT_CONFIG_TIMEOUT).await
                     }
                     Err(e) => Err(e.into()),
                 }
@@ -641,12 +641,16 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         Ok(Responses::from_bodies(bodies))
     }
 
-    async fn request_bodies(scenario: Scenario, url: impl AsRef<str>) -> ClientResult<String> {
+    async fn request_bodies(
+        scenario: Scenario,
+        url: impl AsRef<str>,
+        timeout: Duration,
+    ) -> ClientResult<String> {
         match scenario {
             #[cfg(feature = "with-curl")]
-            Scenario::Curl => imp::curl::request_bodies(url.as_ref()).await,
+            Scenario::Curl => imp::curl::request_bodies(url.as_ref(), timeout).await,
             #[cfg(feature = "with-hyper")]
-            Scenario::Hyper => imp::hyper::request_bodies(url.as_ref()).await,
+            Scenario::Hyper => imp::hyper::request_bodies(url.as_ref(), timeout).await,
         }
     }
 
@@ -671,7 +675,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
             FIRST_LISTEN_TIMEOUT
         };
 
-        let fut1 = Self::request_bodies(self.scenario, url);
+        let fut1 = Self::request_bodies(self.scenario, url, timeout + Duration::from_secs(10));
         let fut2 = Self::sleep(self.scenario, timeout);
         pin_mut!(fut1);
         pin_mut!(fut2);
@@ -795,7 +799,6 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 pub(crate) mod imp {
     #[cfg(feature = "with-curl")]
     pub(crate) mod curl {
-        use crate::DEFAULT_CONFIG_TIMEOUT;
         use crate::{ClientError, ClientResult};
         use futures_timer::Delay;
         use http_01::StatusCode;
@@ -810,11 +813,11 @@ pub(crate) mod imp {
             Delay::new(dur).await
         }
 
-        pub(crate) async fn request_bodies(url: &str) -> ClientResult<String> {
+        pub(crate) async fn request_bodies(url: &str, timeout: Duration) -> ClientResult<String> {
             let client = HttpClientBuilder::new()
                 .version_negotiation(VersionNegotiation::http11())
                 .dns_cache(DnsCache::Disable)
-                .timeout(DEFAULT_CONFIG_TIMEOUT)
+                .timeout(timeout)
                 .build()?;
 
             let mut response = client.get_async(url).await?;
@@ -840,6 +843,8 @@ pub(crate) mod imp {
     #[cfg(feature = "with-hyper")]
     pub(crate) mod hyper {
         use crate::{ClientError, ClientResult};
+        use futures::future::{select, Either};
+        use futures::pin_mut;
         use hyper::body::Buf;
         use hyper::{body, Client, StatusCode};
         use std::str;
@@ -850,9 +855,18 @@ pub(crate) mod imp {
             delay_for(dur).await
         }
 
-        pub(crate) async fn request_bodies(url: &str) -> ClientResult<String> {
+        pub(crate) async fn request_bodies(url: &str, timeout: Duration) -> ClientResult<String> {
             let client = Client::new();
-            let response = client.get(url.parse()?).await?;
+
+            let fut1 = client.get(url.parse()?);
+            let fut2 = sleep(timeout);
+            pin_mut!(fut1);
+            pin_mut!(fut2);
+
+            let response = match select(fut1, fut2).await {
+                Either::Left((response, ..)) => response?,
+                Either::Right(_) => Err(ClientError::ApolloServerError)?,
+            };
             handle_response_status(&response)?;
             let buf = body::aggregate(response).await?;
             let bodies = str::from_utf8(buf.bytes())?.to_owned();
