@@ -1,28 +1,55 @@
-//! Rust🦀 client for Apollo.
-//!
-//! Power by Rust `async/await`.
-//!
-//! ## Features
-//!
-//! Not all features are default, you can read the `[features]` section of [Cargo.toml](https://github.com/jmjoy/apollo-client/blob/master/Cargo.toml) to know all the features.
-//!
-//! The `xml` and `yaml` features aren't enable by default, if you have such kind namespace, you should add
-//! `features` in `Cargo.toml`, just like:
-//!
-//! ```toml
-//! apollo-client = { version = "0.4.0", features = ["yaml", "xml"] }
-//! ```
-//!
-//! Or simply enable all features:
-//!
-//! ```toml
-//! apollo-client = { version = "0.4.0", features = ["full"] }
-//! ```
-//!
-//! ## Usage
-//!
-//! You can find some examples in [the examples directory](https://github.com/jmjoy/apollo-client/tree/master/examples).
-//!
+/*!
+Rust🦀 client for [Apollo](https://github.com/ctripcorp/apollo).
+
+Power by Rust `async/await`.
+
+## Installation
+
+With [cargo add](https://github.com/killercup/cargo-edit) installed run:
+
+```sh
+$ cargo add -s apollo-client
+```
+
+## Features
+
+1. Not all features are default, you can read the `[features]` section of [Cargo.toml](https://github.com/jmjoy/apollo-client/blob/master/Cargo.toml) to know all the features.
+
+1. The `xml` and `yaml` features aren't enable by default, if you have such kind namespace, you should add `features` in `Cargo.toml`, just like:
+
+    ```toml
+    apollo-client = { version = "0.5", features = ["yaml", "xml"] }
+    ```
+
+    Or simply enable all features:
+
+    ```toml
+    apollo-client = { version = "0.5", features = ["full"] }
+    ```
+
+1. By default, using curl client `isahc` to handle http request, you can switch to `hyper` by enable the `with-hyper` feature.
+
+    ```toml
+    apollo-client = { version = "0.5", default-features = false, features = ["with-hyper"] }
+    ```
+
+    Or:
+
+    ```toml
+    apollo-client = { version = "0.5", default-features = false, features = ["full-hyper"] }
+    ```
+
+    Or specify the `Scenario`.
+
+
+## Usage
+
+You can find some examples in [the examples directory](https://github.com/jmjoy/apollo-client/tree/master/examples).
+
+## License
+
+Unlicense.
+*/
 use futures::future::{join_all, select, Either};
 use indexmap::map::IndexMap;
 use quick_error::quick_error;
@@ -586,6 +613,15 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         Self::new_with_scenario(client_config, Default::default())
     }
 
+    /// New with the configuration of apollo and api parameters and scenario.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use apollo_client::{Client, ClientConfig, Scenario};
+    /// let client_config: ClientConfig<String, Vec<String>> = Default::default();
+    /// let _ = Client::new_with_scenario(client_config, Scenario::Curl);
+    /// ```
     pub fn new_with_scenario(client_config: ClientConfig<S, V>, scenario: Scenario) -> Self {
         let notifications = initialize_notifications(client_config.namespace_names.as_ref());
         Self {

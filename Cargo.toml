@@ -69,6 +69,11 @@ path = "examples/basic.rs"
 required-features = ["host-name"]
 
 [[example]]
+name = "scenario"
+path = "examples/scenario.rs"
+required-features = ["host-ip", "yaml", "with-hyper"]
+
+[[example]]
 name = "listen"
 path = "examples/listen.rs"
 required-features = ["host-ip", "yaml"]
@@ -79,4 +84,4 @@ path = "tests/listen_change.rs"
 required-features = ["mock-listen"]
 
 [package.metadata.docs.rs]
-features = ["full-curl"]
+features = ["full-curl", "full-tokio"]
