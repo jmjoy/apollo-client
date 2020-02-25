@@ -620,7 +620,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     /// ```rust
     /// use apollo_client::{Client, ClientConfig, Scenario};
     /// let client_config: ClientConfig<String, Vec<String>> = Default::default();
-    /// let _ = Client::new_with_scenario(client_config, Scenario::Curl);
+    /// let _ = Client::new_with_scenario(client_config, Scenario::default());
     /// ```
     pub fn new_with_scenario(client_config: ClientConfig<S, V>, scenario: Scenario) -> Self {
         let notifications = initialize_notifications(client_config.namespace_names.as_ref());
