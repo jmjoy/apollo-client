@@ -651,7 +651,7 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
     /// Request apollo config api, and return response of your favorite type, with extras query and
     /// specific namespaces.
-    async fn request_with_extras_query_and_namespaces<Ns: AsRef<str>, Nv: AsRef<[Ns]>>(
+    pub async fn request_with_extras_query_and_namespaces<Ns: AsRef<str>, Nv: AsRef<[Ns]>>(
         &self,
         extras_query: Option<&[(&str, &str)]>,
         namespace_names: Nv,
