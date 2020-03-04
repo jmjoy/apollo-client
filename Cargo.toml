@@ -1,6 +1,6 @@
 [package]
 name = "apollo-client"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["jmjoy <918734043@qq.com>"]
 edition = "2018"
 description = "Rust🦀 client for Apollo."
@@ -84,4 +84,4 @@ path = "tests/listen_change.rs"
 required-features = ["mock-listen"]
 
 [package.metadata.docs.rs]
-features = ["full-curl", "full-tokio"]
+features = ["full-curl", "full-hyper"]
