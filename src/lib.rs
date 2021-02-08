@@ -791,8 +791,10 @@ pub(crate) mod imp {
 
             let mut bodies = Vec::new();
             while buf.has_remaining() {
-                let b = buf.copy_to_bytes(4096);
-                bodies.extend_from_slice(&b[..]);
+                let chunk = buf.chunk();
+                let len = chunk.len();
+                bodies.extend_from_slice(chunk);
+                buf.advance(len);
             }
 
             Ok(String::from_utf8(bodies)?)

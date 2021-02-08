@@ -1,6 +1,6 @@
 use apollo_client::{Client, ClientConfig};
-use futures_timer::Delay;
 use std::{collections::HashMap, time::Duration};
+use tokio::time::sleep;
 
 mod common;
 
@@ -54,7 +54,7 @@ async fn listen_change_1() {
     common::test_timeout(Duration::from_secs(10));
 
     tokio::spawn(async move {
-        Delay::new(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(5)).await;
         let mut receiver = common::new_mock_server(8091);
         receiver.recv().await.unwrap();
     });
@@ -74,7 +74,7 @@ async fn listen_change_1() {
             Ok(responses) => break responses,
             Err(e) => {
                 log::warn!("Listen failed and sleep 1 sec: {:?}", e);
-                Delay::new(Duration::from_secs(1)).await;
+                sleep(Duration::from_secs(1)).await;
             }
         }
     };

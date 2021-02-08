@@ -1,4 +1,3 @@
-use futures_timer::Delay;
 use std::{
     process::exit,
     sync::{Arc, Once},
@@ -10,8 +9,9 @@ use std::convert::Infallible;
 use apollo_client::NamespaceKind;
 use futures::try_join;
 use hyper::{
+    server::Server,
     service::{make_service_fn, service_fn},
-    Body, Request, Response, Server,
+    Body, Request, Response,
 };
 use indexmap::map::IndexMap;
 use quick_error::quick_error;
@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 use std::sync::atomic::{AtomicI32, Ordering};
+use tokio::time::sleep;
 
 static START: Once = Once::new();
 
@@ -31,7 +32,7 @@ pub fn setup() {
 #[allow(dead_code)]
 pub fn test_timeout(dur: Duration) {
     tokio::spawn(async move {
-        Delay::new(dur.clone()).await;
+        sleep(dur.clone()).await;
         log::error!("Test failed: {:?} timeout", dur);
         exit(1);
     });
@@ -40,7 +41,7 @@ pub fn test_timeout(dur: Duration) {
 quick_error! {
     #[derive(Debug)]
     pub enum MockServerError {
-        Hyper(err: hyper::error::Error) {
+        Hyper(err: hyper::Error) {
             from()
             description("hyper error")
             display("Hyper error: {}", err)
@@ -57,7 +58,7 @@ quick_error! {
 
 #[allow(dead_code)]
 pub fn new_mock_server(port: u16) -> mpsc::Receiver<()> {
-    let (mut sender, receiver) = mpsc::channel(1);
+    let (sender, receiver) = mpsc::channel(1);
 
     tokio::spawn(async move {
         let index = Arc::new(AtomicI32::new(0));
@@ -146,7 +147,7 @@ async fn mock_server_handler(
             }
         }
         if !has_changed && index < 2 {
-            Delay::new(Duration::from_secs(10)).await;
+            sleep(Duration::from_secs(10)).await;
             Ok(Response::new(Body::from("")))
         } else {
             let body = serde_json::to_string(&notifications).unwrap();
