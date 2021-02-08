@@ -1,7 +1,6 @@
 use apollo_client::{Client, ClientConfig};
 use futures_timer::Delay;
-use std::collections::HashMap;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 mod common;
 

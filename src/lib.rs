@@ -50,26 +50,27 @@ You can find some examples in [the examples directory](https://github.com/jmjoy/
 
 Unlicense.
 */
-use futures::future::{join_all, select, Either};
+use futures::{
+    future::{join_all, select, Either},
+    pin_mut,
+};
 use indexmap::map::IndexMap;
 use quick_error::quick_error;
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
-
-use std::fmt::{Debug, Display};
-use std::time::Duration;
-use std::{fmt, io};
-
-use futures::pin_mut;
-
-use std::str::Utf8Error;
+use std::{
+    collections::HashMap,
+    fmt,
+    fmt::{Debug, Display},
+    io,
+    ops::Deref,
+    string::FromUtf8Error,
+    time::Duration,
+};
 
 // use isahc::config::{DnsCache, VersionNegotiation};
 #[cfg(feature = "regex")]
 use regex::Regex;
-
-use std::collections::HashMap;
-use std::ops::Deref;
 
 #[cfg(test)]
 mod tests;
@@ -99,26 +100,18 @@ quick_error! {
             display("I/O error: {}", err)
             cause(err)
         }
-        Utf8(err: Utf8Error) {
+        Utf8(err: FromUtf8Error) {
             from()
             description("utf-8 error")
             display("UTF-8 error: {}", err)
             cause(err)
         }
-        #[cfg(feature = "with-curl")]
-        Isahc(err: isahc::Error) {
-            description("isahc error")
-            display("Isahc error: {}", err)
-            cause(err)
-        }
-        #[cfg(feature = "with-hyper")]
-        Hyper(err: hyper::error::Error) {
+        Hyper(err: hyper::Error) {
             description("hyper error")
             display("Hyper error: {}", err)
             cause(err)
         }
-        #[cfg(feature = "with-hyper")]
-        InvalidUri(err: http_02::uri::InvalidUri) {
+        InvalidUri(err: http::uri::InvalidUri) {
             description("invalid uri")
             display("Invalid uri: {}", err)
             cause(err)
@@ -196,23 +189,14 @@ impl From<serde_xml_rs::Error> for ClientError {
     }
 }
 
-#[cfg(feature = "with-curl")]
-impl From<isahc::Error> for ClientError {
-    fn from(err: isahc::Error) -> ClientError {
-        ClientError::Isahc(err)
-    }
-}
-
-#[cfg(feature = "with-hyper")]
-impl From<hyper::error::Error> for ClientError {
-    fn from(err: hyper::error::Error) -> ClientError {
+impl From<hyper::Error> for ClientError {
+    fn from(err: hyper::Error) -> ClientError {
         ClientError::Hyper(err)
     }
 }
 
-#[cfg(feature = "with-hyper")]
-impl From<http_02::uri::InvalidUri> for ClientError {
-    fn from(err: http_02::uri::InvalidUri) -> ClientError {
+impl From<http::uri::InvalidUri> for ClientError {
+    fn from(err: http::uri::InvalidUri) -> ClientError {
         ClientError::InvalidUri(err)
     }
 }
@@ -332,9 +316,7 @@ impl<S: AsRef<str>> IpValue<S> {
             #[cfg(feature = "host-ip")]
             IpValue::HostIpRegex(regex) => {
                 use lazy_static::lazy_static;
-                use systemstat::data::IpAddr;
-                use systemstat::platform::common::Platform;
-                use systemstat::System;
+                use systemstat::{data::IpAddr, platform::common::Platform, System};
 
                 lazy_static! {
                     static ref ALL_ADDRS: Vec<String> = System::new()
@@ -572,31 +554,6 @@ pub struct Client<T: AsRef<str>, V: AsRef<[T]>> {
     client_config: ClientConfig<T, V>,
     notifications: Notifications,
     has_notify: bool,
-    scenario: Scenario,
-}
-
-/// Scenario for Client.
-#[derive(Clone, Copy)]
-pub enum Scenario {
-    /// Use `hyper` to handle http request, and `tokio::time::delay_for` to handle sleeing.
-    #[cfg(feature = "with-hyper")]
-    Hyper,
-
-    /// Use `isahc` to handle http request, and `futures-timer` to handle sleeing.
-    #[cfg(feature = "with-curl")]
-    Curl,
-}
-
-impl Default for Scenario {
-    #[cfg(feature = "with-hyper")]
-    fn default() -> Self {
-        Scenario::Hyper
-    }
-
-    #[cfg(all(not(feature = "with-hyper"), feature = "with-curl"))]
-    fn default() -> Self {
-        Scenario::Curl
-    }
 }
 
 impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
@@ -610,25 +567,11 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
     /// let _ = Client::new(client_config);
     /// ```
     pub fn new(client_config: ClientConfig<S, V>) -> Self {
-        Self::new_with_scenario(client_config, Default::default())
-    }
-
-    /// New with the configuration of apollo and api parameters and scenario.
-    ///
-    /// ## Examples
-    ///
-    /// ```rust
-    /// use apollo_client::{Client, ClientConfig, Scenario};
-    /// let client_config: ClientConfig<String, Vec<String>> = Default::default();
-    /// let _ = Client::new_with_scenario(client_config, Scenario::default());
-    /// ```
-    pub fn new_with_scenario(client_config: ClientConfig<S, V>, scenario: Scenario) -> Self {
         let notifications = initialize_notifications(client_config.namespace_names.as_ref());
         Self {
             client_config,
             notifications,
             has_notify: false,
-            scenario,
         }
     }
 
@@ -660,13 +603,12 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         let mut futures = Vec::with_capacity(namespace_names.len());
         for namespace_name in namespace_names {
             let namespace_name = namespace_name.as_ref();
-            let scenario = self.scenario;
             futures.push(async move {
                 let url = self.get_config_url(namespace_name, None, extras_query);
                 match url {
                     Ok(url) => {
                         log::debug!("Request apollo config api: {}", &url);
-                        Self::request_bodies(scenario, &url, DEFAULT_CONFIG_TIMEOUT).await
+                        Self::request_bodies(&url, DEFAULT_CONFIG_TIMEOUT).await
                     }
                     Err(e) => Err(e.into()),
                 }
@@ -677,26 +619,12 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
         Ok(Responses::from_bodies(bodies))
     }
 
-    async fn request_bodies(
-        scenario: Scenario,
-        url: impl AsRef<str>,
-        timeout: Duration,
-    ) -> ClientResult<String> {
-        match scenario {
-            #[cfg(feature = "with-curl")]
-            Scenario::Curl => imp::curl::request_bodies(url.as_ref(), timeout).await,
-            #[cfg(feature = "with-hyper")]
-            Scenario::Hyper => imp::hyper::request_bodies(url.as_ref(), timeout).await,
-        }
+    async fn request_bodies(url: impl AsRef<str>, timeout: Duration) -> ClientResult<String> {
+        imp::hyper::request_bodies(url.as_ref(), timeout).await
     }
 
-    async fn sleep(scenario: Scenario, dur: Duration) {
-        match scenario {
-            #[cfg(feature = "with-curl")]
-            Scenario::Curl => imp::curl::sleep(dur).await,
-            #[cfg(feature = "with-hyper")]
-            Scenario::Hyper => imp::hyper::sleep(dur).await,
-        }
+    async fn sleep(dur: Duration) {
+        imp::hyper::sleep(dur).await
     }
 
     /// Request apollo notification api just once.
@@ -711,8 +639,8 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
             FIRST_LISTEN_TIMEOUT
         };
 
-        let fut1 = Self::request_bodies(self.scenario, url, timeout + Duration::from_secs(10));
-        let fut2 = Self::sleep(self.scenario, timeout);
+        let fut1 = Self::request_bodies(url, timeout + Duration::from_secs(10));
+        let fut2 = Self::sleep(timeout);
         pin_mut!(fut1);
         pin_mut!(fut2);
 
@@ -833,62 +761,17 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 }
 
 pub(crate) mod imp {
-    #[cfg(feature = "with-curl")]
-    pub(crate) mod curl {
-        use crate::{ClientError, ClientResult};
-        use futures_timer::Delay;
-        use http_01::StatusCode;
-        use isahc::ResponseExt;
-        use isahc::{
-            config::{DnsCache, VersionNegotiation},
-            HttpClientBuilder,
-        };
-        use std::time::Duration;
-
-        pub(crate) async fn sleep(dur: Duration) {
-            Delay::new(dur).await
-        }
-
-        pub(crate) async fn request_bodies(url: &str, timeout: Duration) -> ClientResult<String> {
-            let client = HttpClientBuilder::new()
-                .version_negotiation(VersionNegotiation::http11())
-                .dns_cache(DnsCache::Disable)
-                .timeout(timeout)
-                .build()?;
-
-            let mut response = client.get_async(url).await?;
-            handle_response_status(&response)?;
-            let bodies = response.text_async().await?;
-            Ok(bodies)
-        }
-
-        fn handle_response_status<T>(response: &http_01::Response<T>) -> ClientResult<()> {
-            let status = response.status();
-            if !status.is_success() {
-                match response.status() {
-                    StatusCode::NOT_MODIFIED => Err(ClientError::ApolloNotModified)?,
-                    StatusCode::NOT_FOUND => Err(ClientError::ApolloConfigNotFound)?,
-                    StatusCode::INTERNAL_SERVER_ERROR => Err(ClientError::ApolloServerError)?,
-                    status => Err(ClientError::ApolloOtherError(status.as_u16()))?,
-                }
-            }
-            Ok(())
-        }
-    }
-
-    #[cfg(feature = "with-hyper")]
     pub(crate) mod hyper {
         use crate::{ClientError, ClientResult};
-        use futures::future::{select, Either};
-        use futures::pin_mut;
-        use hyper::body::Buf;
-        use hyper::{body, Client, StatusCode};
-        use std::str;
-        use std::time::Duration;
-        use tokio::time::delay_for;
+        use futures::{
+            future::{select, Either},
+            pin_mut,
+        };
+        use hyper::{body, body::Buf, client::Client, StatusCode};
+        use std::{str, time::Duration};
 
         pub(crate) async fn sleep(dur: Duration) {
-            delay_for(dur).await
+            tokio::time::sleep(dur).await
         }
 
         pub(crate) async fn request_bodies(url: &str, timeout: Duration) -> ClientResult<String> {
@@ -901,12 +784,18 @@ pub(crate) mod imp {
 
             let response = match select(fut1, fut2).await {
                 Either::Left((response, ..)) => response?,
-                Either::Right(_) => Err(ClientError::ApolloServerError)?,
+                Either::Right(_) => return Err(ClientError::ApolloServerError),
             };
             handle_response_status(&response)?;
-            let buf = body::aggregate(response).await?;
-            let bodies = str::from_utf8(buf.bytes())?.to_owned();
-            Ok(bodies)
+            let mut buf = body::aggregate(response).await?;
+
+            let mut bodies = Vec::new();
+            while buf.has_remaining() {
+                let b = buf.copy_to_bytes(4096);
+                bodies.extend_from_slice(&b[..]);
+            }
+
+            Ok(String::from_utf8(bodies)?)
         }
 
         fn handle_response_status<T>(response: &hyper::Response<T>) -> ClientResult<()> {

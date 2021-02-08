@@ -1,14 +1,18 @@
 use futures_timer::Delay;
-use std::process::exit;
-use std::sync::{Arc, Once};
-use std::time::Duration;
+use std::{
+    process::exit,
+    sync::{Arc, Once},
+    time::Duration,
+};
 
 use std::convert::Infallible;
 
 use apollo_client::NamespaceKind;
 use futures::try_join;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server};
+use hyper::{
+    service::{make_service_fn, service_fn},
+    Body, Request, Response, Server,
+};
 use indexmap::map::IndexMap;
 use quick_error::quick_error;
 use std::collections::HashMap;

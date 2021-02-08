@@ -1,6 +1,6 @@
 use apollo_client::{Client, ClientConfig, IpValue};
-use futures_timer::Delay;
 use std::time::Duration;
+use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() {
@@ -28,7 +28,7 @@ async fn main() {
             }
             Err(e) => {
                 log::error!("Listen apollo config change failed: {:?}", e);
-                Delay::new(Duration::from_secs(5)).await;
+                sleep(Duration::from_secs(5)).await;
             }
         }
     }
