@@ -14,7 +14,6 @@ use hyper::{
     Body, Request, Response,
 };
 use indexmap::map::IndexMap;
-use quick_error::quick_error;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
@@ -38,22 +37,13 @@ pub fn test_timeout(dur: Duration) {
     });
 }
 
-quick_error! {
-    #[derive(Debug)]
-    pub enum MockServerError {
-        Hyper(err: hyper::Error) {
-            from()
-            description("hyper error")
-            display("Hyper error: {}", err)
-            cause(err)
-        }
-        MpscSend(err: mpsc::error::SendError<()>) {
-            from()
-            description("mpsc send error")
-            display("Mpsc send error: {}", err)
-            cause(err)
-        }
-    }
+#[derive(thiserror::Error, Debug)]
+pub enum MockServerError {
+    #[error("Hyper error: {0}")]
+    Hyper(#[from] hyper::Error),
+
+    #[error("Mpsc send error: {0}")]
+    MpscSend(#[from] mpsc::error::SendError<()>),
 }
 
 #[allow(dead_code)]

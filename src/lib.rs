@@ -57,7 +57,6 @@ use futures::{
     pin_mut,
 };
 use indexmap::map::IndexMap;
-use quick_error::quick_error;
 use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 use std::{
@@ -92,115 +91,58 @@ const FIRST_LISTEN_TIMEOUT: Duration = Duration::from_secs(3);
 /// Apollo client crate side `Result`.
 pub type ClientResult<T> = Result<T, ClientError>;
 
-quick_error! {
-    /// Apollo client crate side `Error`.
-    #[derive(Debug)]
-    pub enum ClientError {
-        Io(err: io::Error) {
-            from()
-            description("io error")
-            display("I/O error: {}", err)
-            cause(err)
-        }
-        Utf8(err: FromUtf8Error) {
-            from()
-            description("utf-8 error")
-            display("UTF-8 error: {}", err)
-            cause(err)
-        }
-        Hyper(err: hyper::Error) {
-            description("hyper error")
-            display("Hyper error: {}", err)
-            cause(err)
-        }
-        InvalidUri(err: http::uri::InvalidUri) {
-            description("invalid uri")
-            display("Invalid uri: {}", err)
-            cause(err)
-        }
-        SerdeJson(err: serde_json::error::Error) {
-            from()
-            description("serde json error")
-            display("Serde json error: {}", err)
-            cause(err)
-        }
-        SerdeUrlencodedSer(err: serde_urlencoded::ser::Error) {
-            from()
-            description("serde urlencoded ser error")
-            display("Serde urlencoded ser error: {}", err)
-            cause(err)
-        }
-        #[cfg(feature = "yaml")]
-        SerdeYaml(err: serde_yaml::Error) {
-            description("serde yaml error")
-            display("Serde yaml error: {}", err)
-            cause(err)
-        }
-        #[cfg(feature = "xml")]
-        SerdeXml(err: serde_xml_rs::Error) {
-            description("serde xml error")
-            display("Serde xml error: {}", err)
-            cause(err)
-        }
-        EmptyResponses {
-            description("empty responses")
-            display("Empty responses")
-        }
-        UnknownApolloConfigurationKind(kind: &'static str) {
-            description("unknown apollo configuration kind")
-            display("Unknown apollo configuration kind: {}", kind)
-        }
-        ApolloContentNotFound {
-            description("apollo content not found")
-            display("Apollo content not found")
-        }
-        ApolloConfigNotFound {
-            description("apollo config not found")
-            display("Apollo config not found")
-        }
-        ApolloServerError {
-            description("apollo server error")
-            display("Apollo server error")
-        }
-        ApolloNotModified {
-            description("apollo not modified")
-            display("Apollo not modified")
-        }
-        ApolloOtherError(code: u16) {
-            description("apollo other error")
-            display("apollo other error, status code: {}", code)
-        }
-        ApolloListenTimeout {
-            description("apollo listen timeout")
-            display("Apollo listen timeout")
-        }
-    }
-}
+/// Apollo client crate side `Error`.
+#[derive(thiserror::Error, Debug)]
+pub enum ClientError {
+    #[error("I/O error: {0}")]
+    Io(#[from] io::Error),
 
-#[cfg(feature = "yaml")]
-impl From<serde_yaml::Error> for ClientError {
-    fn from(err: serde_yaml::Error) -> ClientError {
-        ClientError::SerdeYaml(err)
-    }
-}
+    #[error("UTF-8 error: {0}")]
+    Utf8(#[from] FromUtf8Error),
 
-#[cfg(feature = "xml")]
-impl From<serde_xml_rs::Error> for ClientError {
-    fn from(err: serde_xml_rs::Error) -> ClientError {
-        ClientError::SerdeXml(err)
-    }
-}
+    #[error("Hyper error: {0}")]
+    Hyper(#[from] hyper::Error),
 
-impl From<hyper::Error> for ClientError {
-    fn from(err: hyper::Error) -> ClientError {
-        ClientError::Hyper(err)
-    }
-}
+    #[error("Invalid uri: {0}")]
+    InvalidUri(#[from] http::uri::InvalidUri),
 
-impl From<http::uri::InvalidUri> for ClientError {
-    fn from(err: http::uri::InvalidUri) -> ClientError {
-        ClientError::InvalidUri(err)
-    }
+    #[error("Serde json error: {0}")]
+    SerdeJson(#[from] serde_json::error::Error),
+
+    #[error("Serde urlencoded ser error: {0}")]
+    SerdeUrlencodedSer(#[from] serde_urlencoded::ser::Error),
+
+    #[cfg(feature = "yaml")]
+    #[error("Serde yaml error: {0}")]
+    SerdeYaml(#[from] serde_yaml::Error),
+
+    #[cfg(feature = "xml")]
+    #[error("Serde xml error: {0}")]
+    SerdeXml(#[from] serde_xml_rs::Error),
+
+    #[error("Empty responses")]
+    EmptyResponses,
+
+    #[error("Unknown apollo configuration kind: {0}")]
+    UnknownApolloConfigurationKind(&'static str),
+
+    #[error("Apollo content not found")]
+    ApolloContentNotFound,
+
+    #[error("Apollo config not found")]
+    ApolloConfigNotFound,
+
+    #[error("Apollo server error")]
+    ApolloServerError,
+
+    #[error("Apollo not modified")]
+    ApolloNotModified,
+
+    #[error("apollo other error, status code: {0}")]
+    ApolloOtherError(u16),
+
+    #[error("Apollo listen timeout")]
+    ApolloListenTimeout,
 }
 
 /// Canonicalize the namespace. Just add `.properties` to the end of the namespace which not end
