@@ -287,6 +287,9 @@ pub enum IpValue<S: AsRef<str>> {
     #[cfg(feature = "host-name")]
     HostName,
 
+    /// Get the first ip of the machine generally.
+    HostIp,
+
     /// Get the first ip of the machine match the prefix, such as `^10\.2\.`.
     #[cfg(feature = "host-ip")]
     HostIpRegex(S),
@@ -299,46 +302,19 @@ impl<S: AsRef<str>> IpValue<S> {
     fn to_str(&self) -> &str {
         match self {
             #[cfg(feature = "host-name")]
-            IpValue::HostName => {
-                use lazy_static::lazy_static;
+            IpValue::HostName => get_hostname(),
 
-                lazy_static! {
-                    static ref HOSSNAME: String = {
-                        hostname::get()
-                            .ok()
-                            .and_then(|hostname| hostname.into_string().ok())
-                            .unwrap_or_else(|| "unknown".to_string())
-                    };
-                }
-                &HOSSNAME
-            }
+            #[cfg(feature = "host-ip")]
+            IpValue::HostIp => get_all_addrs()
+                .iter()
+                .find(|addr| !addr.starts_with("127.") && addr.as_str() != "::1")
+                .map(|s| s.as_str())
+                .unwrap_or("127.0.0.1"),
 
             #[cfg(feature = "host-ip")]
             IpValue::HostIpRegex(regex) => {
-                use lazy_static::lazy_static;
-                use systemstat::{data::IpAddr, platform::common::Platform, System};
-
-                lazy_static! {
-                    static ref ALL_ADDRS: Vec<String> = System::new()
-                        .networks()
-                        .ok()
-                        .map(|networks| networks
-                            .values()
-                            .map(|network| network.addrs.iter().filter_map(|network_addr| {
-                                match network_addr.addr {
-                                    IpAddr::V4(addr) => Some(addr.to_string()),
-                                    IpAddr::V6(addr) => Some(addr.to_string()),
-                                    _ => None,
-                                }
-                            }))
-                            .flatten()
-                            .collect())
-                        .unwrap_or(Vec::new());
-                }
-
                 let re = Regex::new(regex.as_ref()).expect("Parse regex of HostIpRegex failed");
-
-                ALL_ADDRS
+                get_all_addrs()
                     .iter()
                     .find(|addr| re.is_match(addr))
                     .map(|s| s.as_str())
@@ -348,6 +324,48 @@ impl<S: AsRef<str>> IpValue<S> {
             IpValue::Custom(s) => s.as_ref(),
         }
     }
+}
+
+#[cfg(feature = "host-name")]
+fn get_hostname() -> &'static str {
+    use once_cell::sync::OnceCell;
+    static HOST_NAME: OnceCell<String> = OnceCell::new();
+    HOST_NAME.get_or_init(|| {
+        hostname::get()
+            .ok()
+            .and_then(|hostname| hostname.into_string().ok())
+            .unwrap_or_else(|| "unknown".to_string())
+    })
+}
+
+#[cfg(feature = "host-ip")]
+fn get_all_addrs() -> &'static [String] {
+    use once_cell::sync::OnceCell;
+    use systemstat::{data::IpAddr, platform::common::Platform, System};
+
+    static ALL_ADDRS: OnceCell<Vec<String>> = OnceCell::new();
+    ALL_ADDRS.get_or_init(|| {
+        System::new()
+            .networks()
+            .ok()
+            .map(|networks| {
+                networks
+                    .values()
+                    .map(|network| {
+                        network
+                            .addrs
+                            .iter()
+                            .filter_map(|network_addr| match network_addr.addr {
+                                IpAddr::V4(addr) => Some(addr.to_string()),
+                                IpAddr::V6(addr) => Some(addr.to_string()),
+                                _ => None,
+                            })
+                    })
+                    .flatten()
+                    .collect()
+            })
+            .unwrap_or(Vec::new())
+    })
 }
 
 /// Kind of a configuration namespace.
