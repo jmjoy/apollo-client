@@ -1,3 +1,5 @@
+#![warn(rust_2018_idioms, clippy::dbg_macro, clippy::print_stdout)]
+
 /*!
 Rust🦀 client for [Apollo](https://github.com/ctripcorp/apollo).
 
@@ -396,7 +398,7 @@ impl NamespaceKind {
 }
 
 impl Display for NamespaceKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         Display::fmt(
             match self {
                 NamespaceKind::Properties => "properties",
