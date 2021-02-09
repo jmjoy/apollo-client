@@ -20,22 +20,19 @@ jobs:
       matrix:
         os:
         - ubuntu-latest
-        # - macos-latest
-        # - windows-latest
+#        - macos-latest
+#        - windows-latest
         features:
         - ""
-        - --no-default-features --features with-curl
-        - --no-default-features --features with-hyper
-        - --features with-curl
-        - --features with-hyper
+        - --no-default-features
         - --features xml
         - --features yaml
-        - --features full-curl
-        - --features full-hyper
+        - --features full
         - --all-features
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Docker compose
       run: docker-compose up -d
     - name: Build
@@ -48,14 +45,15 @@ jobs:
       matrix:
         os:
         - ubuntu-latest
-        - macos-latest
-        - windows-latest
+#        - macos-latest
+#        - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - name: rustup component add rustfmt
-        run: rustup component add rustfmt
-      - name: fmt
-        run: cargo fmt --all -- --check
-      - name: doc
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup
+        run: rustup toolchain install nightly --component rustfmt --allow-downgrade
+      - name: Fmt
+        run: cargo +nightly fmt --all -- --check
+      - name: Doc
         run: cargo doc

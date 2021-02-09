@@ -1,20 +1,24 @@
-use futures_timer::Delay;
-use std::process::exit;
-use std::sync::{Arc, Once};
-use std::time::Duration;
+use std::{
+    process::exit,
+    sync::{Arc, Once},
+    time::Duration,
+};
 
 use std::convert::Infallible;
 
 use apollo_client::NamespaceKind;
 use futures::try_join;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server};
+use hyper::{
+    server::Server,
+    service::{make_service_fn, service_fn},
+    Body, Request, Response,
+};
 use indexmap::map::IndexMap;
-use quick_error::quick_error;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 use std::sync::atomic::{AtomicI32, Ordering};
+use tokio::time::sleep;
 
 static START: Once = Once::new();
 
@@ -27,33 +31,24 @@ pub fn setup() {
 #[allow(dead_code)]
 pub fn test_timeout(dur: Duration) {
     tokio::spawn(async move {
-        Delay::new(dur.clone()).await;
+        sleep(dur.clone()).await;
         log::error!("Test failed: {:?} timeout", dur);
         exit(1);
     });
 }
 
-quick_error! {
-    #[derive(Debug)]
-    pub enum MockServerError {
-        Hyper(err: hyper::error::Error) {
-            from()
-            description("hyper error")
-            display("Hyper error: {}", err)
-            cause(err)
-        }
-        MpscSend(err: mpsc::error::SendError<()>) {
-            from()
-            description("mpsc send error")
-            display("Mpsc send error: {}", err)
-            cause(err)
-        }
-    }
+#[derive(thiserror::Error, Debug)]
+pub enum MockServerError {
+    #[error("Hyper error: {0}")]
+    Hyper(#[from] hyper::Error),
+
+    #[error("Mpsc send error: {0}")]
+    MpscSend(#[from] mpsc::error::SendError<()>),
 }
 
 #[allow(dead_code)]
 pub fn new_mock_server(port: u16) -> mpsc::Receiver<()> {
-    let (mut sender, receiver) = mpsc::channel(1);
+    let (sender, receiver) = mpsc::channel(1);
 
     tokio::spawn(async move {
         let index = Arc::new(AtomicI32::new(0));
@@ -142,7 +137,7 @@ async fn mock_server_handler(
             }
         }
         if !has_changed && index < 2 {
-            Delay::new(Duration::from_secs(10)).await;
+            sleep(Duration::from_secs(10)).await;
             Ok(Response::new(Body::from("")))
         } else {
             let body = serde_json::to_string(&notifications).unwrap();
