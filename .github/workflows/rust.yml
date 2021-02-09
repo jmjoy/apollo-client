@@ -51,10 +51,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Setup target nightly
-        run: rustup target add nightly
-      - name: Setup rustfmt
-        run: rustup component add rustfmt
+      - name: Setup
+        run: rustup toolchain install nightly --component rustfmt --allow-downgrade
       - name: Fmt
         run: cargo +nightly fmt --all -- --check
       - name: Doc
