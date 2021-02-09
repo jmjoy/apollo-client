@@ -24,29 +24,14 @@ $ cargo add -s apollo-client
 1. The `xml` and `yaml` features aren't enable by default, if you have such kind namespace, you should add `features` in `Cargo.toml`, just like:
 
     ```toml
-    apollo-client = { version = "0.5", features = ["yaml", "xml"] }
+    apollo-client = { version = "0.6", features = ["yaml", "xml"] }
     ```
 
     Or simply enable all features:
 
     ```toml
-    apollo-client = { version = "0.5", features = ["full"] }
+    apollo-client = { version = "0.6", features = ["full"] }
     ```
-
-1. By default, using curl client `isahc` to handle http request, you can switch to `hyper` by enable the `with-hyper` feature.
-
-    ```toml
-    apollo-client = { version = "0.5", default-features = false, features = ["with-hyper"] }
-    ```
-
-    Or:
-
-    ```toml
-    apollo-client = { version = "0.5", default-features = false, features = ["full-hyper"] }
-    ```
-
-    Or specify the `Scenario`.
-
 
 ## Usage
 
@@ -55,4 +40,3 @@ You can find some examples in [the examples directory](https://github.com/jmjoy/
 ## License
 
 Unlicense.
-
