@@ -217,6 +217,7 @@ pub enum IpValue<S: AsRef<str>> {
     HostName,
 
     /// Get the first ip of the machine generally.
+    #[cfg(feature = "host-ip")]
     HostIp,
 
     /// Get the first ip of the machine match the prefix, such as `^10\.2\.`.
