@@ -36,9 +36,9 @@ jobs:
     - name: Docker compose
       run: docker-compose up -d
     - name: Build
-      run: cargo build --verbose ${{ matrix.features }}
+      run: cargo build --release --verbose ${{ matrix.features }}
     - name: Test
-      run: cargo test --verbose ${{ matrix.features }}
+      run: cargo test --release --verbose ${{ matrix.features }}
 
   check-fmt-and-docs:
     strategy:
@@ -56,4 +56,4 @@ jobs:
       - name: Fmt
         run: cargo +nightly fmt --all -- --check
       - name: Doc
-        run: cargo doc
+        run: cargo +nightly rustdoc --all-features -- --cfg docsrs

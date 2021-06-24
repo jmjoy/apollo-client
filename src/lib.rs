@@ -1,4 +1,5 @@
 #![warn(rust_2018_idioms, clippy::dbg_macro, clippy::print_stdout)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 /*!
 Rust🦀 client for [Apollo](https://github.com/ctripcorp/apollo).
@@ -98,10 +99,12 @@ pub enum ClientError {
     SerdeUrlencodedSer(#[from] serde_urlencoded::ser::Error),
 
     #[cfg(feature = "yaml")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "yaml")))]
     #[error("Serde yaml error: {0}")]
     SerdeYaml(#[from] serde_yaml::Error),
 
     #[cfg(feature = "xml")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "xml")))]
     #[error("Serde xml error: {0}")]
     SerdeXml(#[from] serde_xml_rs::Error),
 
@@ -214,14 +217,17 @@ impl Default for ClientConfig<String, Vec<String>> {
 pub enum IpValue<S: AsRef<str>> {
     /// Get the hostname of the machine.
     #[cfg(feature = "host-name")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "host-name")))]
     HostName,
 
     /// Get the first ip of the machine generally.
     #[cfg(feature = "host-ip")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "host-ip")))]
     HostIp,
 
     /// Get the first ip of the machine match the prefix, such as `^10\.2\.`.
     #[cfg(feature = "host-ip")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "host-ip")))]
     HostIpRegex(S),
 
     /// Specify your own IP address or other text.

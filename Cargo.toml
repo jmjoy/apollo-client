@@ -1,17 +1,15 @@
 [package]
 name = "apollo-client"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["jmjoy <918734043@qq.com>"]
 edition = "2018"
-description = "Rust🦀 client for Apollo."
+description = "Rust🦀 client for Ctrip Apollo."
 repository = "https://github.com/jmjoy/apollo-client"
 documentation = "https://docs.rs/apollo-client"
 license = "Unlicense"
 readme = "README.md"
 keywords = ["apollo", "client"]
 exclude = [
-    ".github",
-    ".gitignore",
     "sql",
     "docker-compose.yml",
     "test-coverage.sh",
@@ -32,28 +30,28 @@ full = ["yaml", "xml", "host-extend"]
 mock-listen = []
 
 [dependencies]
-futures = { version = "0.3.1", features = ["alloc"] }
-hostname = { version = "0.3.0", optional = true }
-http = { package = "http", version = "0.2.0" }
-hyper = { version = "0.14", features = ["client", "http1", "tcp"] }
-indexmap = { version = "1.6", features = ["serde-1"] }
-log = "0.4.8"
-once_cell = "1.5.2"
-regex = { version = "1.3.3", optional = true }
-serde = "1.0.104"
-serde-xml-rs = { version = "0.3.1", optional = true }
-serde_derive = "1.0.104"
-serde_json = { version = "1.0.44", features = ["preserve_order"] }
-serde_urlencoded = "0.6.1"
-serde_yaml = { version = "0.8.11", optional = true }
-systemstat = { version = "0.1.5", optional = true }
-thiserror = "1.0.23"
-tokio = { version = "1", features = ["time"] }
+futures = { version = "0.3.15", features = ["alloc"] }
+hostname = { version = "0.3.1", optional = true }
+http = { version = "0.2.4" }
+hyper = { version = "0.14.9", features = ["client", "http1", "tcp"] }
+indexmap = { version = "1.6.2", features = ["serde-1"] }
+log = "0.4.14"
+once_cell = "1.8.0"
+regex = { version = "1.5.4", optional = true }
+serde = "1.0.126"
+serde-xml-rs = { version = "0.4.1", optional = true }
+serde_derive = "1.0.126"
+serde_json = { version = "1.0.64", features = ["preserve_order"] }
+serde_urlencoded = "0.7.0"
+serde_yaml = { version = "0.8.17", optional = true }
+systemstat = { version = "0.1.8", optional = true }
+thiserror = "1.0.25"
+tokio = { version = "1.7.0", features = ["time"] }
 
 [dev-dependencies]
-env_logger = "0.8"
-tokio = { version = "1", features = ["full"] }
-hyper = { version = "0.14", features = ["client", "http1", "server", "tcp"] }
+env_logger = "0.8.4"
+tokio = { version = "1.7.0", features = ["full"] }
+hyper = { version = "0.14.9", features = ["client", "http1", "server", "tcp"] }
 
 [[example]]
 name = "basic"
@@ -71,4 +69,5 @@ path = "tests/listen_change.rs"
 required-features = ["mock-listen"]
 
 [package.metadata.docs.rs]
-features = ["full"]
+rustdoc-args = ["--cfg", "docsrs"]
+all-features = true
