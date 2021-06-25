@@ -24,12 +24,14 @@ host-name = ["hostname"]
 host-extend = ["host-ip", "host-name"]
 yaml = ["serde_yaml"]
 xml = ["serde-xml-rs"]
-full = ["yaml", "xml", "host-extend"]
+open = ["chrono/serde", "url"]
+full = ["yaml", "xml", "host-extend", "open"]
 
 # Internal feature for test suite.
 mock-listen = []
 
 [dependencies]
+chrono = { version = "0.4.19", optional = true }
 futures = { version = "0.3.15", features = ["alloc"] }
 hostname = { version = "0.3.1", optional = true }
 http = { version = "0.2.4" }
@@ -38,6 +40,7 @@ indexmap = { version = "1.6.2", features = ["serde-1"] }
 log = "0.4.14"
 once_cell = "1.8.0"
 regex = { version = "1.5.4", optional = true }
+reqwest = { version = "0.11.3", features = ["cookies"] }
 serde = "1.0.126"
 serde-xml-rs = { version = "0.4.1", optional = true }
 serde_derive = "1.0.126"
@@ -47,6 +50,7 @@ serde_yaml = { version = "0.8.17", optional = true }
 systemstat = { version = "0.1.8", optional = true }
 thiserror = "1.0.25"
 tokio = { version = "1.7.0", features = ["time"] }
+url = { version = "2.2.2", optional = true }
 
 [dev-dependencies]
 env_logger = "0.8.4"
@@ -67,6 +71,10 @@ required-features = ["host-ip", "yaml"]
 name = "listen_change"
 path = "tests/listen_change.rs"
 required-features = ["mock-listen"]
+
+[[test]]
+name = "open"
+required-features = ["open"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

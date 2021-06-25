@@ -54,13 +54,18 @@ use std::{
     string::FromUtf8Error,
     time::Duration,
 };
-
-// use isahc::config::{DnsCache, VersionNegotiation};
 #[cfg(feature = "regex")]
 use regex::Regex;
 
+// #[cfg(feature = "open")]
+// #[cfg_attr(docsrs, doc(cfg(feature = "open")))]
+// pub use open::{OpenApiClient, OpenApiClientBuilder, OpenApiClientResult, OpenApiClientError};
+
 #[cfg(test)]
 mod tests;
+#[cfg(feature = "open")]
+#[cfg_attr(docsrs, doc(cfg(feature = "open")))]
+pub mod open;
 
 /// Default request config url timeout.
 const DEFAULT_CONFIG_TIMEOUT: Duration = Duration::from_secs(30);
