@@ -1,10 +1,9 @@
 use http::StatusCode;
-use crate::open::errors::OpenApiResponseError::Unknown;
 
-pub type OpenApiClientResult<T> = Result<T, OpenApiClientError>;
+pub type ApolloClientResult<T> = Result<T, ApolloClientError>;
 
 #[derive(thiserror::Error, Debug)]
-pub enum OpenApiClientError {
+pub enum ApolloClientError {
     #[error(transparent)]
     Http(#[from] http::Error),
 
@@ -15,14 +14,14 @@ pub enum OpenApiClientError {
     SerdeJson(#[from] serde_json::Error),
 
     #[error(transparent)]
-    OpenApiResponse(#[from] OpenApiResponseError),
+    ApolloResponse(#[from] ApolloResponseError),
 
     #[error("this URL is cannot-be-a-base")]
     UrlCannotBeABase,
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum OpenApiResponseError {
+pub enum ApolloResponseError {
     #[error("bad request")]
     BadRequest,
     #[error("unauthorized")]
@@ -39,7 +38,7 @@ pub enum OpenApiResponseError {
     Unknown(StatusCode),
 }
 
-impl OpenApiResponseError {
+impl ApolloResponseError {
     pub(crate) fn from_status_code(status: StatusCode) -> Option<Self> {
         match status {
             StatusCode::OK => None,
@@ -49,7 +48,7 @@ impl OpenApiResponseError {
             StatusCode::NOT_FOUND => Some(Self::NotFound),
             StatusCode::METHOD_NOT_ALLOWED => Some(Self::MethodNotAllowed),
             StatusCode::INTERNAL_SERVER_ERROR => Some(Self::InternalServerError),
-            s => Some(Unknown(s)),
+            s => Some(Self::Unknown(s)),
         }
     }
 }

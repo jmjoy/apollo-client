@@ -1,16 +1,16 @@
-version: '2'
+version: '3.6'
 
 services:
   apollo-quick-start:
     image: nobodyiam/apollo-quick-start
-    container_name: apollo-quick-start
+    container_name: apollo
     depends_on:
       - apollo-db
     ports:
       - "8080:8080"
       - "8070:8070"
-    links:
-      - apollo-db
+    networks:
+      - overlay
 
   apollo-db:
     image: mysql:5.7
@@ -18,17 +18,16 @@ services:
     environment:
       TZ: Asia/Shanghai
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-    depends_on:
-      - apollo-dbdata
     ports:
-      - "13306:3306"
+      - "3306:3306"
     volumes:
       - ./sql:/docker-entrypoint-initdb.d
-    volumes_from:
-      - apollo-dbdata
+      - apollo-db-data:/var/lib/mysql
+    networks:
+      - overlay
 
-  apollo-dbdata:
-    image: alpine:latest
-    container_name: apollo-dbdata
-    volumes:
-      - /var/lib/mysql
+volumes:
+  apollo-db-data:
+
+networks:
+  overlay:

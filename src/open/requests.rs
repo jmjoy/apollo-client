@@ -1,24 +1,16 @@
 use http::Method;
-use crate::open::responses::{OpenEnvClusterResponse, OpenAppResponse, OpenNamespaceResponse};
 use serde::de::DeserializeOwned;
+
+use crate::open::responses::{OpenAppResponse, OpenEnvClusterResponse, OpenNamespaceResponse};
+use crate::requests::PerformRequest;
+use std::borrow::Cow;
 
 const OPEN_API_PREFIX: &'static str = "/openapi/v1";
 const DEFAULT_CLUSTER_NAME: &'static str = "default";
 
-pub trait OpenRequest {
-    type Response: DeserializeOwned;
+pub trait PerformOpenRequest: PerformRequest {}
 
-    fn path(&self) -> String;
-
-    fn method(&self) -> http::Method {
-        Method::GET
-    }
-
-    fn query(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-}
-
+#[derive(Clone, Debug)]
 pub struct OpenEnvClusterRequest {
     app_id: String,
 }
@@ -31,7 +23,7 @@ impl OpenEnvClusterRequest {
     }
 }
 
-impl OpenRequest for OpenEnvClusterRequest {
+impl PerformRequest for OpenEnvClusterRequest {
     type Response = Vec<OpenEnvClusterResponse>;
 
     fn path(&self) -> String {
@@ -39,6 +31,9 @@ impl OpenRequest for OpenEnvClusterRequest {
     }
 }
 
+impl PerformOpenRequest for OpenEnvClusterRequest {}
+
+#[derive(Clone, Debug)]
 pub struct OpenAppRequest {
     app_ids: Option<Vec<String>>,
 }
@@ -53,24 +48,28 @@ impl OpenAppRequest {
     }
 }
 
-impl OpenRequest for OpenAppRequest {
+impl PerformRequest for OpenAppRequest {
     type Response = Vec<OpenAppResponse>;
 
     fn path(&self) -> String {
         format!("{}/apps", OPEN_API_PREFIX)
     }
 
-    fn query(&self) -> Vec<(String, String)> {
+    fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         match &self.app_ids {
-            Some(app_ids) => vec![("appIds".to_owned(), app_ids.join(","))],
+            Some(app_ids) => vec![("appIds".into(), app_ids.join(",").into())],
             None => vec![]
         }
     }
 }
 
+impl PerformOpenRequest for OpenAppRequest {}
+
+#[derive(Clone, Debug)]
 pub struct OpenNamespaceRequest {
 }
 
+#[derive(Clone, Debug)]
 pub struct OpenAllNamespaceRequest {
     env: String,
     app_id: String,
@@ -91,10 +90,12 @@ impl OpenAllNamespaceRequest {
     }
 }
 
-impl OpenRequest for OpenAllNamespaceRequest {
+impl PerformRequest for OpenAllNamespaceRequest {
     type Response = Vec<OpenNamespaceResponse>;
 
     fn path(&self) -> String {
         format!("{}/envs/{}/apps/{}/clusters/{}/namespaces", OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name)
     }
 }
+
+impl PerformOpenRequest for OpenAllNamespaceRequest {}

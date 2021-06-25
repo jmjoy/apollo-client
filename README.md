@@ -4,18 +4,27 @@
 [![Actions](https://github.com/jmjoy/apollo-client/workflows/Rust/badge.svg?branch=master&event=push)](https://github.com/jmjoy/apollo-client/actions?query=workflow%3ARust+branch%3Amaster+event%3Apush++)
 [![Crate](https://img.shields.io/crates/v/apollo-client.svg)](https://crates.io/crates/apollo-client)
 [![API](https://docs.rs/apollo-client/badge.svg)](https://docs.rs/apollo-client)
+[![Lines](https://img.shields.io/tokei/lines/github/jmjoy/apollo-client)](https://github.com/jmjoy/apollo-client)
+[![License](https://img.shields.io/crates/l/apollo-client)](https://github.com/jmjoy/apollo-client/blob/master/LICENSE)
 
-Rust🦀 client for [Apollo](https://github.com/ctripcorp/apollo).
+Rust🦀 client for [Ctrip Apollo](https://github.com/ctripcorp/apollo).
 
 Power by Rust `async/await`.
 
 ## Installation
 
-With [cargo add](https://github.com/killercup/cargo-edit) installed run:
+With [cargo edit](https://github.com/killercup/cargo-edit) installed run:
 
 ```sh
-$ cargo add -s apollo-client
+$ cargo add -s --features full tokio
+$ cargo add -s --features full apollo-client
 ```
+
+## Support
+
+- [x] Fetch config via config service.
+- [ ] Fetch config via mata service.
+- [x] Apollo open apis.
 
 ## Features
 
@@ -39,4 +48,4 @@ You can find some examples in [the examples directory](https://github.com/jmjoy/
 
 ## License
 
-Unlicense.
+[Unlicense](https://github.com/jmjoy/apollo-client/blob/master/LICENSE).

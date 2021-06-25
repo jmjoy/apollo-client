@@ -2,17 +2,31 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 /*!
-Rust🦀 client for [Apollo](https://github.com/ctripcorp/apollo).
+[![Rustc Version](https://img.shields.io/badge/rustc-1.39+-lightgray.svg)](https://blog.rust-lang.org/2019/11/07/Rust-1.39.0.html)
+[![Actions](https://github.com/jmjoy/apollo-client/workflows/Rust/badge.svg?branch=master&event=push)](https://github.com/jmjoy/apollo-client/actions?query=workflow%3ARust+branch%3Amaster+event%3Apush++)
+[![Crate](https://img.shields.io/crates/v/apollo-client.svg)](https://crates.io/crates/apollo-client)
+[![API](https://docs.rs/apollo-client/badge.svg)](https://docs.rs/apollo-client)
+[![Lines](https://img.shields.io/tokei/lines/github/jmjoy/apollo-client)](https://github.com/jmjoy/apollo-client)
+[![License](https://img.shields.io/crates/l/apollo-client)](https://github.com/jmjoy/apollo-client/blob/master/LICENSE)
+
+Rust🦀 client for [Ctrip Apollo](https://github.com/ctripcorp/apollo).
 
 Power by Rust `async/await`.
 
 ## Installation
 
-With [cargo add](https://github.com/killercup/cargo-edit) installed run:
+With [cargo edit](https://github.com/killercup/cargo-edit) installed run:
 
 ```sh
-$ cargo add -s apollo-client
+$ cargo add -s --features full tokio
+$ cargo add -s --features full apollo-client
 ```
+
+## Support
+
+- [x] Fetch config via config service.
+- [ ] Fetch config via mata service.
+- [x] Apollo open apis.
 
 ## Features
 
@@ -36,15 +50,9 @@ You can find some examples in [the examples directory](https://github.com/jmjoy/
 
 ## License
 
-Unlicense.
+[Unlicense](https://github.com/jmjoy/apollo-client/blob/master/LICENSE).
 */
-use futures::{
-    future::{join_all, select, Either},
-    pin_mut,
-};
-use indexmap::map::IndexMap;
-use serde::de::DeserializeOwned;
-use serde_derive::{Deserialize, Serialize};
+
 use std::{
     collections::HashMap,
     fmt,
@@ -54,8 +62,16 @@ use std::{
     string::FromUtf8Error,
     time::Duration,
 };
+
+use futures::{
+    future::{Either, join_all, select},
+    pin_mut,
+};
+use indexmap::map::IndexMap;
 #[cfg(feature = "regex")]
 use regex::Regex;
+use serde::de::DeserializeOwned;
+use serde_derive::{Deserialize, Serialize};
 
 // #[cfg(feature = "open")]
 // #[cfg_attr(docsrs, doc(cfg(feature = "open")))]
@@ -66,14 +82,20 @@ mod tests;
 #[cfg(feature = "open")]
 #[cfg_attr(docsrs, doc(cfg(feature = "open")))]
 pub mod open;
+#[cfg(feature = "conf")]
+#[cfg_attr(docsrs, doc(cfg(feature = "conf")))]
+pub mod conf;
+pub mod errors;
+pub mod requests;
+mod utils;
 
 /// Default request config url timeout.
 const DEFAULT_CONFIG_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Should be longer than server side's long polling timeout, which is now 60 seconds.
-#[cfg(feature = "mock-listen")]
+#[cfg(test)]
 const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(3);
-#[cfg(not(feature = "mock-listen"))]
+#[cfg(not(test))]
 const DEFAULT_LISTEN_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// First listen timeout.
@@ -163,14 +185,12 @@ pub fn canonicalize_namespace(namespace: &str) -> String {
 }
 
 /// Configuration of Apollo and api information.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClientConfig<S: AsRef<str>, V: AsRef<[S]>> {
     pub config_server_url: S,
     pub app_id: S,
     pub cluster_name: S,
     pub namespace_names: V,
-    #[serde(default)]
     pub ip: Option<IpValue<S>>,
 }
 
@@ -217,8 +237,7 @@ impl Default for ClientConfig<String, Vec<String>> {
 }
 
 /// Apollo config api `ip` param value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IpValue<S: AsRef<str>> {
     /// Get the hostname of the machine.
     #[cfg(feature = "host-name")]
@@ -243,10 +262,10 @@ impl<S: AsRef<str>> IpValue<S> {
     fn to_str(&self) -> &str {
         match self {
             #[cfg(feature = "host-name")]
-            IpValue::HostName => get_hostname(),
+            IpValue::HostName => utils::get_hostname(),
 
             #[cfg(feature = "host-ip")]
-            IpValue::HostIp => get_all_addrs()
+            IpValue::HostIp => utils::get_all_addrs()
                 .iter()
                 .find(|addr| !addr.starts_with("127.") && addr.as_str() != "::1")
                 .map(|s| s.as_str())
@@ -255,7 +274,7 @@ impl<S: AsRef<str>> IpValue<S> {
             #[cfg(feature = "host-ip")]
             IpValue::HostIpRegex(regex) => {
                 let re = Regex::new(regex.as_ref()).expect("Parse regex of HostIpRegex failed");
-                get_all_addrs()
+                utils::get_all_addrs()
                     .iter()
                     .find(|addr| re.is_match(addr))
                     .map(|s| s.as_str())
@@ -265,48 +284,6 @@ impl<S: AsRef<str>> IpValue<S> {
             IpValue::Custom(s) => s.as_ref(),
         }
     }
-}
-
-#[cfg(feature = "host-name")]
-fn get_hostname() -> &'static str {
-    use once_cell::sync::OnceCell;
-    static HOST_NAME: OnceCell<String> = OnceCell::new();
-    HOST_NAME.get_or_init(|| {
-        hostname::get()
-            .ok()
-            .and_then(|hostname| hostname.into_string().ok())
-            .unwrap_or_else(|| "unknown".to_string())
-    })
-}
-
-#[cfg(feature = "host-ip")]
-fn get_all_addrs() -> &'static [String] {
-    use once_cell::sync::OnceCell;
-    use systemstat::{data::IpAddr, platform::common::Platform, System};
-
-    static ALL_ADDRS: OnceCell<Vec<String>> = OnceCell::new();
-    ALL_ADDRS.get_or_init(|| {
-        System::new()
-            .networks()
-            .ok()
-            .map(|networks| {
-                networks
-                    .values()
-                    .map(|network| {
-                        network
-                            .addrs
-                            .iter()
-                            .filter_map(|network_addr| match network_addr.addr {
-                                IpAddr::V4(addr) => Some(addr.to_string()),
-                                IpAddr::V6(addr) => Some(addr.to_string()),
-                                _ => None,
-                            })
-                    })
-                    .flatten()
-                    .collect()
-            })
-            .unwrap_or(Vec::new())
-    })
 }
 
 /// Kind of a configuration namespace.
@@ -721,13 +698,15 @@ impl<S: AsRef<str> + Display, V: AsRef<[S]>> Client<S, V> {
 
 pub(crate) mod imp {
     pub(crate) mod hyper {
-        use crate::{ClientError, ClientResult};
+        use std::{str, time::Duration};
+
         use futures::{
-            future::{select, Either},
+            future::{Either, select},
             pin_mut,
         };
         use hyper::{body, body::Buf, client::Client, StatusCode};
-        use std::{str, time::Duration};
+
+        use crate::{ClientError, ClientResult};
 
         pub(crate) async fn sleep(dur: Duration) {
             tokio::time::sleep(dur).await
