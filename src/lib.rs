@@ -13,7 +13,7 @@ Rust🦀 client for [Ctrip Apollo](https://github.com/ctripcorp/apollo).
 
 Power by Rust `async/await`.
 
-## Installation
+# Installation
 
 With [cargo edit](https://github.com/killercup/cargo-edit) installed run:
 
@@ -22,13 +22,13 @@ $ cargo add -s --features full tokio
 $ cargo add -s --features full apollo-client
 ```
 
-## Support
+# Support
 
 - [x] Fetch config via config service.
 - [ ] Fetch config via mata service.
 - [x] Apollo open apis.
 
-## Features
+# Features
 
 1. Not all features are default, you can read the `[features]` section of [Cargo.toml](https://github.com/jmjoy/apollo-client/blob/master/Cargo.toml) to know all the features.
 
@@ -44,11 +44,11 @@ $ cargo add -s --features full apollo-client
     apollo-client = { version = "0.6", features = ["full"] }
     ```
 
-## Usage
+# Usage
 
 You can find some examples in [the examples directory](https://github.com/jmjoy/apollo-client/tree/master/examples).
 
-## License
+# License
 
 [Unlicense](https://github.com/jmjoy/apollo-client/blob/master/LICENSE).
 */
