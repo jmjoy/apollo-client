@@ -1,7 +1,6 @@
-use serde::{Serialize, Deserialize};
-use serde::de::DeserializeOwned;
-use std::time::SystemTime;
 use chrono::{DateTime, Local};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::time::SystemTime;
 
 macro_rules! open_response_with_base_fields {
     ($name:ident, { $( ($i:ident, $t:ty) ,)* }) => {
@@ -26,6 +25,8 @@ pub struct OpenEnvClusterResponse {
     pub clusters: Vec<String>,
 }
 
+implement_json_perform_response!(Vec<OpenEnvClusterResponse>);
+
 open_response_with_base_fields! {
     OpenAppResponse,
     {
@@ -37,6 +38,8 @@ open_response_with_base_fields! {
         (owner_email, String),
     }
 }
+
+implement_json_perform_response!(Vec<OpenAppResponse>);
 
 open_response_with_base_fields! {
     OpenNamespaceResponse,
@@ -51,6 +54,8 @@ open_response_with_base_fields! {
     }
 }
 
+implement_json_perform_response!(Vec<OpenNamespaceResponse>);
+
 open_response_with_base_fields! {
     OpenItemResponse,
     {
@@ -59,3 +64,5 @@ open_response_with_base_fields! {
         (comment, Option<String>),
     }
 }
+
+implement_json_perform_response!(Vec<OpenItemResponse>);

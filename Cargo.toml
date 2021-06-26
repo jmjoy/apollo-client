@@ -18,20 +18,21 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-conf = []
+conf = ["rust-ini"]
 default = ["host-extend", "conf"]
 host-ip = ["systemstat", "regex"]
 host-name = ["hostname"]
 host-extend = ["host-ip", "host-name"]
 yaml = ["serde_yaml"]
 xml = ["serde-xml-rs"]
-open = ["chrono/serde", "url"]
+open = ["chrono/serde"]
 full = ["yaml", "xml", "host-extend", "open"]
 
 # Internal feature for test suite.
 mock-listen = []
 
 [dependencies]
+async-trait = "0.1.50"
 chrono = { version = "0.4.19", optional = true }
 futures = { version = "0.3.15", features = ["alloc"] }
 hostname = { version = "0.3.1", optional = true }
@@ -41,7 +42,8 @@ indexmap = { version = "1.6.2", features = ["serde-1"] }
 log = "0.4.14"
 once_cell = "1.8.0"
 regex = { version = "1.5.4", optional = true }
-reqwest = { version = "0.11.4", features = ["cookies"] }
+reqwest = { version = "0.11.4", features = ["cookies", "json"] }
+rust-ini = { version = "0.17.0", optional = true }
 serde = "1.0.126"
 serde-xml-rs = { version = "0.4.1", optional = true }
 serde_derive = "1.0.126"
@@ -51,7 +53,7 @@ serde_yaml = { version = "0.8.17", optional = true }
 systemstat = { version = "0.1.8", optional = true }
 thiserror = "1.0.25"
 tokio = { version = "1.7.1", features = ["time"] }
-url = { version = "2.2.2", optional = true }
+url = "2.2.2"
 
 [dev-dependencies]
 env_logger = "0.8.4"

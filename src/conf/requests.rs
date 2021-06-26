@@ -1,8 +1,11 @@
-use crate::requests::PerformRequest;
-use crate::utils;
+use crate::{
+    common::{PerformRequest, DEFAULT_CLUSTER_NAME},
+    utils,
+};
+use ini::Properties;
 use regex::Regex;
-use std::borrow::Cow;
 use serde::de::DeserializeOwned;
+use std::{borrow::Cow, collections::HashMap};
 
 /// Apollo config api `ip` param value.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,43 +60,171 @@ impl IpValue {
 pub trait PerformConfRequest: PerformRequest {}
 
 #[derive(Clone, Debug)]
-pub struct CachedConfRequest {
-    app_id: String,
+pub struct CachedFetchRequest {
+    app_id: Cow<'static, str>,
     cluster_name: Cow<'static, str>,
-    namespace_name: String,
+    namespace_name: Cow<'static, str>,
     ip: Option<IpValue>,
-    extras_query: Vec<(Cow<'static, str>, Cow<'static, str>)>
+    extras_queries: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
-impl CachedConfRequest {
+impl CachedFetchRequest {
     pub fn new(
-        app_id: String,
-        cluster_name: impl Into<Cow<'static, str>>,
-        namespace_name: String,
-        ip: Option<IpValue>,
-        extras_query: Vec<(impl Into<Cow<'static, str>>, impl Into<Cow<'static, str>>)>,
+        app_id: impl Into<Cow<'static, str>>,
+        namespace_name: impl Into<Cow<'static, str>>,
     ) -> Self {
         Self {
-            app_id,
-            cluster_name: cluster_name.into(),
-            namespace_name,
-            ip,
-            extras_query: extras_query.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+            app_id: app_id.into(),
+            cluster_name: DEFAULT_CLUSTER_NAME.into(),
+            namespace_name: namespace_name.into(),
+            ip: None,
+            extras_queries: vec![],
         }
+    }
+
+    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
+        self.cluster_name = cluster_name.into();
+        self
+    }
+
+    pub fn ip(mut self, ip: IpValue) -> Self {
+        self.ip = Some(ip);
+        self
+    }
+
+    pub fn add_extras_query(
+        mut self,
+        name: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        self.extras_queries.push((name.into(), value.into()));
+        self
+    }
+
+    pub fn extras_queries(
+        mut self,
+        extras_queries: Vec<(impl Into<Cow<'static, str>>, impl Into<Cow<'static, str>>)>,
+    ) -> Self {
+        self.extras_queries = extras_queries
+            .into_iter()
+            .map(|(n, v)| (n.into(), v.into()))
+            .collect();
+        self
     }
 }
 
-impl PerformRequest for CachedConfRequest {
-    type Response = ();
+impl PerformRequest for CachedFetchRequest {
+    type Response = Properties;
 
     fn path(&self) -> String {
-        format!("/configfiles/{app_id}/{cluster_name}/{namespace_name}",
-                app_id = self.app_id, cluster_name = self.cluster_name, namespace_name = self.namespace_name)
+        format!(
+            "/configfiles/{app_id}/{cluster_name}/{namespace_name}",
+            app_id = self.app_id,
+            cluster_name = self.cluster_name,
+            namespace_name = self.namespace_name
+        )
     }
 
     fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        // let mut pairs = vec![];
-        // pairs.insert()
-        todo!()
+        let mut pairs = vec![];
+        if let Some(ip) = &self.ip {
+            pairs.push(("ip".into(), ip.to_str().to_owned().into()));
+        }
+        if !self.extras_queries.is_empty() {
+            pairs.extend_from_slice(&self.extras_queries);
+        }
+        pairs
     }
 }
+
+impl PerformConfRequest for CachedFetchRequest {}
+
+#[derive(Clone, Debug)]
+pub struct FetchRequest {
+    app_id: Cow<'static, str>,
+    cluster_name: Cow<'static, str>,
+    namespace_name: Cow<'static, str>,
+    ip: Option<IpValue>,
+    release_key: Option<String>,
+    extras_queries: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+}
+
+impl FetchRequest {
+    pub fn new(
+        app_id: impl Into<Cow<'static, str>>,
+        namespace_name: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        Self {
+            app_id: app_id.into(),
+            cluster_name: DEFAULT_CLUSTER_NAME.into(),
+            namespace_name: namespace_name.into(),
+            ip: None,
+            release_key: None,
+            extras_queries: vec![],
+        }
+    }
+
+    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
+        self.cluster_name = cluster_name.into();
+        self
+    }
+
+    pub fn ip(mut self, ip: IpValue) -> Self {
+        self.ip = Some(ip);
+        self
+    }
+
+    pub fn release_key(mut self, release_key: String) -> Self {
+        self.release_key = Some(release_key);
+        self
+    }
+
+    pub fn add_extras_query(
+        mut self,
+        name: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        self.extras_queries.push((name.into(), value.into()));
+        self
+    }
+
+    pub fn extras_queries(
+        mut self,
+        extras_queries: Vec<(impl Into<Cow<'static, str>>, impl Into<Cow<'static, str>>)>,
+    ) -> Self {
+        self.extras_queries = extras_queries
+            .into_iter()
+            .map(|(n, v)| (n.into(), v.into()))
+            .collect();
+        self
+    }
+}
+
+impl PerformRequest for FetchRequest {
+    type Response = Properties;
+
+    fn path(&self) -> String {
+        format!(
+            "/configs/{app_id}/{cluster_name}/{namespace_name}",
+            app_id = self.app_id,
+            cluster_name = self.cluster_name,
+            namespace_name = self.namespace_name
+        )
+    }
+
+    fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+        let mut pairs = vec![];
+        if let Some(ip) = &self.ip {
+            pairs.push(("ip".into(), ip.to_str().to_owned().into()));
+        }
+        if let Some(release_key) = &self.release_key {
+            pairs.push(("releaseKey".into(), release_key.clone().into()));
+        }
+        if !self.extras_queries.is_empty() {
+            pairs.extend_from_slice(&self.extras_queries);
+        }
+        pairs
+    }
+}
+
+impl PerformConfRequest for FetchRequest {}

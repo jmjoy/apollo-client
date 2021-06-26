@@ -1,4 +1,5 @@
 #![warn(rust_2018_idioms, clippy::dbg_macro, clippy::print_stdout)]
+#![forbid(non_ascii_idents, unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 /*!
@@ -64,7 +65,7 @@ use std::{
 };
 
 use futures::{
-    future::{Either, join_all, select},
+    future::{join_all, select, Either},
     pin_mut,
 };
 use indexmap::map::IndexMap;
@@ -77,16 +78,17 @@ use serde_derive::{Deserialize, Serialize};
 // #[cfg_attr(docsrs, doc(cfg(feature = "open")))]
 // pub use open::{OpenApiClient, OpenApiClientBuilder, OpenApiClientResult, OpenApiClientError};
 
-#[cfg(test)]
-mod tests;
-#[cfg(feature = "open")]
-#[cfg_attr(docsrs, doc(cfg(feature = "open")))]
-pub mod open;
+#[macro_use]
+pub mod common;
 #[cfg(feature = "conf")]
 #[cfg_attr(docsrs, doc(cfg(feature = "conf")))]
 pub mod conf;
 pub mod errors;
-pub mod requests;
+#[cfg(feature = "open")]
+#[cfg_attr(docsrs, doc(cfg(feature = "open")))]
+pub mod open;
+#[cfg(test)]
+mod tests;
 mod utils;
 
 /// Default request config url timeout.
@@ -701,7 +703,7 @@ pub(crate) mod imp {
         use std::{str, time::Duration};
 
         use futures::{
-            future::{Either, select},
+            future::{select, Either},
             pin_mut,
         };
         use hyper::{body, body::Buf, client::Client, StatusCode};

@@ -1,12 +1,14 @@
+use std::borrow::Cow;
+
 use http::Method;
 use serde::de::DeserializeOwned;
 
-use crate::open::responses::{OpenAppResponse, OpenEnvClusterResponse, OpenNamespaceResponse};
-use crate::requests::PerformRequest;
-use std::borrow::Cow;
+use crate::{
+    common::{PerformRequest, DEFAULT_CLUSTER_NAME},
+    open::responses::{OpenAppResponse, OpenEnvClusterResponse, OpenNamespaceResponse},
+};
 
 const OPEN_API_PREFIX: &'static str = "/openapi/v1";
-const DEFAULT_CLUSTER_NAME: &'static str = "default";
 
 pub trait PerformOpenRequest: PerformRequest {}
 
@@ -40,7 +42,9 @@ pub struct OpenAppRequest {
 
 impl OpenAppRequest {
     pub fn new<S: ToString>(app_ids: impl Into<Vec<S>>) -> Self {
-        Self { app_ids: Some(app_ids.into().into_iter().map(|s| s.to_string()).collect()) }
+        Self {
+            app_ids: Some(app_ids.into().into_iter().map(|s| s.to_string()).collect()),
+        }
     }
 
     pub fn all() -> Self {
@@ -58,7 +62,7 @@ impl PerformRequest for OpenAppRequest {
     fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
         match &self.app_ids {
             Some(app_ids) => vec![("appIds".into(), app_ids.join(",").into())],
-            None => vec![]
+            None => vec![],
         }
     }
 }
@@ -66,27 +70,27 @@ impl PerformRequest for OpenAppRequest {
 impl PerformOpenRequest for OpenAppRequest {}
 
 #[derive(Clone, Debug)]
-pub struct OpenNamespaceRequest {
-}
+pub struct OpenNamespaceRequest {}
 
 #[derive(Clone, Debug)]
 pub struct OpenAllNamespaceRequest {
     env: String,
     app_id: String,
-    cluster_name: String,
+    cluster_name: Cow<'static, str>,
 }
 
 impl OpenAllNamespaceRequest {
     pub fn new(env: impl ToString, app_id: impl ToString) -> Self {
-        Self::new_with_cluster(env, app_id, DEFAULT_CLUSTER_NAME)
-    }
-
-    pub fn new_with_cluster(env: impl ToString, app_id: impl ToString, cluster_name: impl ToString) -> Self {
         Self {
             env: env.to_string(),
             app_id: app_id.to_string(),
-            cluster_name: cluster_name.to_string(),
+            cluster_name: DEFAULT_CLUSTER_NAME.into(),
         }
+    }
+
+    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
+        self.cluster_name = cluster_name.into();
+        self
     }
 }
 
@@ -94,7 +98,10 @@ impl PerformRequest for OpenAllNamespaceRequest {
     type Response = Vec<OpenNamespaceResponse>;
 
     fn path(&self) -> String {
-        format!("{}/envs/{}/apps/{}/clusters/{}/namespaces", OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name)
+        format!(
+            "{}/envs/{}/apps/{}/clusters/{}/namespaces",
+            OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name
+        )
     }
 }
 

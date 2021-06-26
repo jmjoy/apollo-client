@@ -5,19 +5,17 @@
 pub mod requests;
 pub mod responses;
 
-pub use crate::errors::{ApolloClientResult, ApolloClientError};
-use reqwest::{IntoUrl, ClientBuilder, Client, Response};
-use std::time::Duration;
-use http::{HeaderMap, HeaderValue, StatusCode};
-use http::header::AUTHORIZATION;
-use url::Url;
-use std::convert::TryInto;
-use crate::requests::PerformRequest;
-use crate::errors::ApolloClientError::UrlCannotBeABase;
+pub use crate::errors::{ApolloClientError, ApolloClientResult};
+use crate::{
+    common::{handle_url, validate_response, PerformRequest, PerformResponse},
+    errors::{ApolloClientError::UrlCannotBeABase, ApolloResponseError},
+    open::requests::PerformOpenRequest,
+};
+use http::{header::AUTHORIZATION, HeaderMap, HeaderValue, StatusCode};
+use reqwest::{Client, ClientBuilder, IntoUrl, Response};
 use serde::de::DeserializeOwned;
-use crate::errors::ApolloResponseError;
-use crate::open::requests::PerformOpenRequest;
-use std::borrow::Cow;
+use std::{borrow::Cow, convert::TryInto, time::Duration};
+use url::Url;
 
 /// The builder of [OpenApiClient].
 pub struct OpenApiClientBuilder {
@@ -50,7 +48,10 @@ impl OpenApiClientBuilder {
 
         Ok(OpenApiClient {
             portal_url: self.portal_url,
-            client: self.client_builder.default_headers(default_headers).build()?,
+            client: self
+                .client_builder
+                .default_headers(default_headers)
+                .build()?,
         })
     }
 
@@ -68,27 +69,13 @@ pub struct OpenApiClient {
 }
 
 impl OpenApiClient {
-    pub async fn execute<R: DeserializeOwned>(&self, request: impl PerformOpenRequest<Response = R>) -> ApolloClientResult<R> {
-        let url = self.handle_url(&request.path(), &request.query())?;
+    pub async fn execute<R: PerformResponse>(
+        &self,
+        request: impl PerformOpenRequest<Response = R>,
+    ) -> ApolloClientResult<R> {
+        let url = handle_url(&request, self.portal_url.clone())?;
         let response = self.client.request(request.method(), url).send().await?;
-        Self::validate_response(&response)?;
-        let content = response.bytes().await?;
-        Ok(serde_json::from_slice(&content)?)
-    }
-
-    fn handle_url(&self, path: &str, query: &[(Cow<'static, str>, Cow<'static, str>)]) -> ApolloClientResult<Url> {
-        let mut url = self.portal_url.clone();
-        url.path_segments_mut().map_err(|_| UrlCannotBeABase)?.extend(path.split('/'));
-        if !query.is_empty() {
-            url.query_pairs_mut().extend_pairs(query);
-        }
-        Ok(url)
-    }
-
-    fn validate_response(response: &Response) -> ApolloClientResult<()> {
-        match ApolloResponseError::from_status_code(response.status()) {
-            Some(e) => Err(e.into()),
-            None => Ok(()),
-        }
+        validate_response(&response)?;
+        <R>::from_response(response).await
     }
 }

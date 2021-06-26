@@ -1,9 +1,13 @@
 use http::StatusCode;
+use std::str::Utf8Error;
 
 pub type ApolloClientResult<T> = Result<T, ApolloClientError>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ApolloClientError {
+    #[error(transparent)]
+    Utf8(#[from] Utf8Error),
+
     #[error(transparent)]
     Http(#[from] http::Error),
 
@@ -13,11 +17,19 @@ pub enum ApolloClientError {
     #[error(transparent)]
     SerdeJson(#[from] serde_json::Error),
 
+    #[cfg(feature = "conf")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "conf")))]
+    #[error(transparent)]
+    IniParse(#[from] ini::ParseError),
+
     #[error(transparent)]
     ApolloResponse(#[from] ApolloResponseError),
 
     #[error("this URL is cannot-be-a-base")]
     UrlCannotBeABase,
+
+    #[error("Config is empty")]
+    EmptyConfig,
 }
 
 #[derive(thiserror::Error, Debug)]
