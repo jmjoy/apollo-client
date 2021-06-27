@@ -8,7 +8,7 @@ use reqwest::{RequestBuilder, Response};
 use std::{borrow::Cow, fmt, fmt::Display, time::Duration};
 use url::Url;
 
-pub(crate) const DEFAULT_CLUSTER_NAME: &'static str = "default";
+pub(crate) const DEFAULT_CLUSTER_NAME: &str = "default";
 pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 pub(crate) const DEFAULT_NOTIFY_TIMEOUT: Duration = Duration::from_secs(90);
 
@@ -121,4 +121,41 @@ macro_rules! implement_json_perform_response {
             }
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_infer_namespace_kind() {
+        assert_eq!(
+            NamespaceKind::infer_namespace_kind("foo.properties"),
+            NamespaceKind::Properties
+        );
+        assert_eq!(
+            NamespaceKind::infer_namespace_kind("foo.xml"),
+            NamespaceKind::Xml
+        );
+        assert_eq!(
+            NamespaceKind::infer_namespace_kind("foo.yaml"),
+            NamespaceKind::Yaml
+        );
+        assert_eq!(
+            NamespaceKind::infer_namespace_kind("foo.yml"),
+            NamespaceKind::Yaml
+        );
+        assert_eq!(
+            NamespaceKind::infer_namespace_kind("foo.json"),
+            NamespaceKind::Json
+        );
+        assert_eq!(
+            NamespaceKind::infer_namespace_kind("foo.txt"),
+            NamespaceKind::Txt
+        );
+        assert_eq!(
+            NamespaceKind::infer_namespace_kind("foo"),
+            NamespaceKind::Properties
+        );
+    }
 }

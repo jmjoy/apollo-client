@@ -1,5 +1,8 @@
+//! Useful utilities.
+
 #[cfg(feature = "host-name")]
-pub(crate) fn get_hostname() -> &'static str {
+#[allow(dead_code)]
+pub(crate) fn get_host_name() -> &'static str {
     use once_cell::sync::OnceCell;
 
     static HOST_NAME: OnceCell<String> = OnceCell::new();
@@ -12,6 +15,7 @@ pub(crate) fn get_hostname() -> &'static str {
 }
 
 #[cfg(feature = "host-ip")]
+#[allow(dead_code)]
 pub(crate) fn get_all_addrs() -> &'static [std::net::IpAddr] {
     use once_cell::sync::OnceCell;
     use systemstat::{data::IpAddr, platform::common::Platform, System};
@@ -33,14 +37,14 @@ pub(crate) fn get_all_addrs() -> &'static [std::net::IpAddr] {
                                     if addr.is_loopback() {
                                         None
                                     } else {
-                                        Some(std::net::IpAddr::V4(addr.clone()))
+                                        Some(std::net::IpAddr::V4(addr))
                                     }
                                 }
                                 IpAddr::V6(addr) => {
                                     if addr.is_loopback() {
                                         None
                                     } else {
-                                        Some(std::net::IpAddr::V6(addr.clone()))
+                                        Some(std::net::IpAddr::V6(addr))
                                     }
                                 }
                                 _ => None,

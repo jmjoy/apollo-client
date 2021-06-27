@@ -1,4 +1,4 @@
-//! Apollo Open APIs Client.
+//! Apollo Open APIs apis.
 //!
 //! Ref: <https://www.apolloconfig.com/#/zh/usage/apollo-open-api-platform>.
 

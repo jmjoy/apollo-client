@@ -1,13 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-use crate::{
-    conf::requests::{FetchRequest, Watch},
-    utils,
-};
+use crate::conf::requests::{FetchRequest, Watch};
 use std::fmt::{self, Display};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Notification {
     namespace_name: Cow<'static, str>,
@@ -71,13 +68,41 @@ pub enum IpValue {
     #[cfg_attr(docsrs, doc(cfg(feature = "host-ip")))]
     HostIp,
 
-    /// Get the first ip of the machine match the prefix, such as `^10\.2\.`.
+    /// Get the first ip of the machine match the cidr, such as '10.2.0.0/16'.
     #[cfg(feature = "host-ip")]
     #[cfg_attr(docsrs, doc(cfg(feature = "host-ip")))]
-    HostIpRegex(cidr_utils::cidr::IpCidr),
+    HostCidr(cidr_utils::cidr::IpCidr),
 
     /// Specify your own IP address or other text.
     Custom(String),
+}
+
+impl IpValue {
+    #[cfg(feature = "host-name")]
+    fn get_host_name() -> &'static str {
+        cfg_if::cfg_if! {
+            if #[cfg(test)] {
+                "test-host-name"
+            } else {
+                crate::utils::get_host_name()
+            }
+        }
+    }
+
+    #[cfg(feature = "host-ip")]
+    fn get_all_addrs() -> &'static [std::net::IpAddr] {
+        cfg_if::cfg_if! {
+            if #[cfg(test)] {
+                static TEST_IPS: [std::net::IpAddr; 2] = [
+                    std::net::IpAddr::V4(std::net::Ipv4Addr::new(10, 2, 0, 1)),
+                    std::net::IpAddr::V4(std::net::Ipv4Addr::new(10, 3, 0, 1)),
+                ];
+                &TEST_IPS
+            } else {
+                crate::utils::get_all_addrs()
+            }
+        }
+    }
 }
 
 impl Display for IpValue {
@@ -87,20 +112,19 @@ impl Display for IpValue {
             "{}",
             match self {
                 #[cfg(feature = "host-name")]
-                IpValue::HostName => Cow::Borrowed(utils::get_hostname()),
+                IpValue::HostName => Cow::Borrowed(Self::get_host_name()),
 
                 #[cfg(feature = "host-ip")]
                 IpValue::HostIp => {
-                    utils::get_all_addrs()
-                        .iter()
-                        .nth(0)
+                    Self::get_all_addrs()
+                        .get(0)
                         .map(|s| Cow::Owned(s.to_string()))
                         .unwrap_or(Cow::Borrowed("127.0.0.1"))
                 }
 
                 #[cfg(feature = "host-ip")]
-                IpValue::HostIpRegex(cidr) => {
-                    utils::get_all_addrs()
+                IpValue::HostCidr(cidr) => {
+                    Self::get_all_addrs()
                         .iter()
                         .find(|addr| cidr.contains(**addr))
                         .map(|s| Cow::Owned(s.to_string()))
@@ -110,5 +134,61 @@ impl Display for IpValue {
                 IpValue::Custom(s) => Cow::Borrowed(s.as_ref()),
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_notification_new() {
+        let notification = Notification::new("foo.properties");
+        assert_eq!(notification.namespace_name, "foo");
+        assert_eq!(notification.notification_id, -1);
+
+        let notification = Notification::new("foo.yaml").notification_id(10);
+        assert_eq!(notification.namespace_name, "foo.yaml");
+        assert_eq!(notification.notification_id, 10);
+    }
+
+    #[test]
+    fn test_update_notifications() {
+        let mut notifications = [
+            Notification::new("foo"),
+            Notification::new("bar").notification_id(10),
+        ];
+        Notification::update_notifications(
+            &mut notifications,
+            &[Notification::new("foo").notification_id(100)],
+        );
+        assert_eq!(
+            notifications,
+            [
+                Notification::new("foo").notification_id(100),
+                Notification::new("bar").notification_id(10),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_ip_value_display() {
+        #[cfg(feature = "host-name")]
+        assert_eq!(IpValue::HostName.to_string(), "test-host-name");
+
+        #[cfg(feature = "host-ip")]
+        assert_eq!(IpValue::HostIp.to_string(), "10.2.0.1");
+
+        #[cfg(feature = "host-ip")]
+        assert_eq!(
+            IpValue::HostCidr(cidr_utils::cidr::IpCidr::from_str("10.3.0.0/16").unwrap())
+                .to_string(),
+            "10.3.0.1"
+        );
+
+        assert_eq!(
+            IpValue::Custom("custom-ip".to_owned()).to_string(),
+            "custom-ip"
+        );
     }
 }

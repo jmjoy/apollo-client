@@ -1,3 +1,5 @@
+//! Crate level errors.
+
 use http::StatusCode;
 use std::str::Utf8Error;
 use tokio::task::JoinError;

@@ -92,7 +92,7 @@ impl PerformRequest for CachedFetchRequest {
 
 impl PerformConfRequest for CachedFetchRequest {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FetchRequest {
     app_id: Cow<'static, str>,
     cluster_name: Cow<'static, str>,

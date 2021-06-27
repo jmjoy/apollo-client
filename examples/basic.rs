@@ -1,26 +1,28 @@
-use apollo_client::{Client, ClientConfig, ClientResult, IpValue};
+use apollo_client::{
+    conf::{meta::IpValue, requests::CachedFetchRequest, ApolloConfClientBuilder},
+    errors::ApolloClientResult,
+};
+use ini::Properties;
+use std::error::Error;
+use url::Url;
 
 #[tokio::main]
-async fn main() -> ClientResult<()> {
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let client_config = ClientConfig {
-        config_server_url: "http://localhost:8080",
-        app_id: "SampleApp",
-        cluster_name: "default",
-        namespace_names: vec!["application.json"],
-        ip: Some(IpValue::HostName),
-        ..Default::default()
-    };
+    // Create configuration client.
+    let client =
+        ApolloConfClientBuilder::new_via_config_service(Url::parse("http://localhost:8080")?)?
+            .build()?;
 
-    // Request response once.
-    let responses = Client::new(client_config).request().await?;
-    dbg!(&responses);
+    // Request apollo cached configuration api.
+    let configuration: Properties = client
+        .execute(CachedFetchRequest::new("SampleApp", "application.json").ip(IpValue::HostName))
+        .await?;
 
-    let configuration = responses
-        .into_first()?
-        .deserialize_configurations::<serde_json::Value>()?;
-    dbg!(&configuration);
+    // Get the content of configuration.
+    let content = configuration.get("content");
+    dbg!(content);
 
     Ok(())
 }

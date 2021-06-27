@@ -1,3 +1,7 @@
+//! Apollo configuration apis.
+//!
+//! Refs: <https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide>.
+
 pub mod meta;
 pub mod requests;
 pub mod responses;

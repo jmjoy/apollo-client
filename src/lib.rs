@@ -63,6 +63,4 @@ pub mod errors;
 #[cfg(feature = "open")]
 #[cfg_attr(docsrs, doc(cfg(feature = "open")))]
 pub mod open;
-#[cfg(test)]
-mod tests;
 pub mod utils;
