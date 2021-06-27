@@ -1,6 +1,7 @@
 #[cfg(feature = "host-name")]
 pub(crate) fn get_hostname() -> &'static str {
     use once_cell::sync::OnceCell;
+
     static HOST_NAME: OnceCell<String> = OnceCell::new();
     HOST_NAME.get_or_init(|| {
         hostname::get()
@@ -11,11 +12,11 @@ pub(crate) fn get_hostname() -> &'static str {
 }
 
 #[cfg(feature = "host-ip")]
-pub(crate) fn get_all_addrs() -> &'static [String] {
+pub(crate) fn get_all_addrs() -> &'static [std::net::IpAddr] {
     use once_cell::sync::OnceCell;
     use systemstat::{data::IpAddr, platform::common::Platform, System};
 
-    static ALL_ADDRS: OnceCell<Vec<String>> = OnceCell::new();
+    static ALL_ADDRS: OnceCell<Vec<std::net::IpAddr>> = OnceCell::new();
     ALL_ADDRS.get_or_init(|| {
         System::new()
             .networks()
@@ -28,14 +29,66 @@ pub(crate) fn get_all_addrs() -> &'static [String] {
                             .addrs
                             .iter()
                             .filter_map(|network_addr| match network_addr.addr {
-                                IpAddr::V4(addr) => Some(addr.to_string()),
-                                IpAddr::V6(addr) => Some(addr.to_string()),
+                                IpAddr::V4(addr) => {
+                                    if addr.is_loopback() {
+                                        None
+                                    } else {
+                                        Some(std::net::IpAddr::V4(addr.clone()))
+                                    }
+                                }
+                                IpAddr::V6(addr) => {
+                                    if addr.is_loopback() {
+                                        None
+                                    } else {
+                                        Some(std::net::IpAddr::V6(addr.clone()))
+                                    }
+                                }
                                 _ => None,
                             })
                     })
                     .flatten()
                     .collect()
             })
-            .unwrap_or(Vec::new())
+            .unwrap_or_default()
     })
+}
+
+/// Canonicalize the namespace. Just add `.properties` to the end of the namespace which not end
+/// with `.properties` or `.xml` or `.json` or `.yaml` or `.yml` or `.txt`.
+///
+/// # Examples
+///
+/// ```rust
+/// use apollo_client::utils::canonicalize_namespace;
+/// assert_eq!(canonicalize_namespace("foo"), "foo.properties");
+/// assert_eq!(canonicalize_namespace("foo.yaml"), "foo.yaml");
+/// ```
+pub fn canonicalize_namespace(namespace: &str) -> String {
+    if namespace.ends_with(".properties")
+        || namespace.ends_with(".xml")
+        || namespace.ends_with(".json")
+        || namespace.ends_with(".yaml")
+        || namespace.ends_with(".yml")
+        || namespace.ends_with(".txt")
+    {
+        namespace.to_string()
+    } else {
+        format!("{}.properties", namespace)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_canonicalize_namespace() {
+        assert_eq!(canonicalize_namespace("foo.properties"), "foo.properties");
+        assert_eq!(canonicalize_namespace("foo.xml"), "foo.xml");
+        assert_eq!(canonicalize_namespace("foo.yaml"), "foo.yaml");
+        assert_eq!(canonicalize_namespace("foo.yml"), "foo.yml");
+        assert_eq!(canonicalize_namespace("foo.json"), "foo.json");
+        assert_eq!(canonicalize_namespace("foo.txt"), "foo.txt");
+        assert_eq!(canonicalize_namespace("foo"), "foo.properties");
+    }
 }

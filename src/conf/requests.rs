@@ -1,61 +1,14 @@
 use crate::{
-    common::{PerformRequest, DEFAULT_CLUSTER_NAME},
-    utils,
+    common::{PerformRequest, DEFAULT_CLUSTER_NAME, DEFAULT_NOTIFY_TIMEOUT},
+    conf::{
+        meta::{IpValue, Notification},
+        responses::FetchResponse,
+    },
+    errors::ApolloClientResult,
 };
 use ini::Properties;
-use regex::Regex;
-use serde::de::DeserializeOwned;
-use std::{borrow::Cow, collections::HashMap};
-
-/// Apollo config api `ip` param value.
-#[derive(Debug, Clone, PartialEq)]
-pub enum IpValue {
-    /// Get the hostname of the machine.
-    #[cfg(feature = "host-name")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "host-name")))]
-    HostName,
-
-    /// Get the first ip of the machine generally.
-    #[cfg(feature = "host-ip")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "host-ip")))]
-    HostIp,
-
-    /// Get the first ip of the machine match the prefix, such as `^10\.2\.`.
-    #[cfg(feature = "host-ip")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "host-ip")))]
-    HostIpRegex(String),
-
-    /// Specify your own IP address or other text.
-    Custom(String),
-}
-
-impl IpValue {
-    fn to_str(&self) -> &str {
-        match self {
-            #[cfg(feature = "host-name")]
-            IpValue::HostName => utils::get_hostname(),
-
-            #[cfg(feature = "host-ip")]
-            IpValue::HostIp => utils::get_all_addrs()
-                .iter()
-                .find(|addr| !addr.starts_with("127.") && addr.as_str() != "::1")
-                .map(|s| s.as_str())
-                .unwrap_or("127.0.0.1"),
-
-            #[cfg(feature = "host-ip")]
-            IpValue::HostIpRegex(regex) => {
-                let re = Regex::new(regex.as_ref()).expect("Parse regex of HostIpRegex failed");
-                utils::get_all_addrs()
-                    .iter()
-                    .find(|addr| re.is_match(addr))
-                    .map(|s| s.as_str())
-                    .unwrap_or("127.0.0.1")
-            }
-
-            IpValue::Custom(s) => s.as_ref(),
-        }
-    }
-}
+use reqwest::RequestBuilder;
+use std::{borrow::Cow, time::Duration};
 
 pub trait PerformConfRequest: PerformRequest {}
 
@@ -125,15 +78,15 @@ impl PerformRequest for CachedFetchRequest {
         )
     }
 
-    fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
         let mut pairs = vec![];
         if let Some(ip) = &self.ip {
-            pairs.push(("ip".into(), ip.to_str().to_owned().into()));
+            pairs.push(("ip".into(), ip.to_string().into()));
         }
         if !self.extras_queries.is_empty() {
             pairs.extend_from_slice(&self.extras_queries);
         }
-        pairs
+        Ok(pairs)
     }
 }
 
@@ -198,10 +151,21 @@ impl FetchRequest {
             .collect();
         self
     }
+
+    pub(crate) fn from_watch(watch: &Watch, namespace_name: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            app_id: watch.app_id.clone(),
+            cluster_name: watch.cluster_name.clone(),
+            namespace_name: namespace_name.into(),
+            ip: watch.ip.clone(),
+            release_key: None,
+            extras_queries: watch.extras_queries.clone(),
+        }
+    }
 }
 
 impl PerformRequest for FetchRequest {
-    type Response = Properties;
+    type Response = FetchResponse;
 
     fn path(&self) -> String {
         format!(
@@ -212,10 +176,10 @@ impl PerformRequest for FetchRequest {
         )
     }
 
-    fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
         let mut pairs = vec![];
         if let Some(ip) = &self.ip {
-            pairs.push(("ip".into(), ip.to_str().to_owned().into()));
+            pairs.push(("ip".into(), ip.to_string().into()));
         }
         if let Some(release_key) = &self.release_key {
             pairs.push(("releaseKey".into(), release_key.clone().into()));
@@ -223,8 +187,135 @@ impl PerformRequest for FetchRequest {
         if !self.extras_queries.is_empty() {
             pairs.extend_from_slice(&self.extras_queries);
         }
-        pairs
+        Ok(pairs)
     }
 }
 
 impl PerformConfRequest for FetchRequest {}
+
+#[derive(Clone, Debug)]
+pub struct NotifyRequest {
+    app_id: Cow<'static, str>,
+    cluster_name: Cow<'static, str>,
+    notifications: Vec<Notification>,
+    timeout: Duration,
+}
+
+impl NotifyRequest {
+    pub fn new(
+        app_id: impl Into<Cow<'static, str>>,
+        notifications: impl Into<Vec<Notification>>,
+    ) -> Self {
+        Self {
+            app_id: app_id.into(),
+            cluster_name: DEFAULT_CLUSTER_NAME.into(),
+            notifications: notifications.into(),
+            timeout: DEFAULT_NOTIFY_TIMEOUT,
+        }
+    }
+
+    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
+        self.cluster_name = cluster_name.into();
+        self
+    }
+
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    pub(crate) fn from_watch(watch: &Watch, notifications: Vec<Notification>) -> Self {
+        Self {
+            app_id: watch.app_id.clone(),
+            cluster_name: watch.cluster_name.clone(),
+            notifications,
+            timeout: DEFAULT_NOTIFY_TIMEOUT,
+        }
+    }
+}
+
+impl PerformRequest for NotifyRequest {
+    type Response = Vec<Notification>;
+
+    fn path(&self) -> String {
+        "/notifications/v2".to_string()
+    }
+
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
+        Ok(vec![
+            ("appId".into(), self.app_id.clone()),
+            ("cluster".into(), self.cluster_name.clone()),
+            (
+                "notifications".into(),
+                serde_json::to_string(&self.notifications)?.into(),
+            ),
+        ])
+    }
+
+    fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
+        request_builder.timeout(self.timeout)
+    }
+}
+
+impl PerformConfRequest for NotifyRequest {}
+
+#[derive(Clone, Debug)]
+pub struct Watch {
+    app_id: Cow<'static, str>,
+    cluster_name: Cow<'static, str>,
+    namespaces: Vec<Cow<'static, str>>,
+    ip: Option<IpValue>,
+    extras_queries: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+}
+
+impl Watch {
+    pub fn new<S: Into<Cow<'static, str>>>(
+        app_id: impl Into<Cow<'static, str>>,
+        namespaces: impl IntoIterator<Item = S>,
+    ) -> Self {
+        Self {
+            app_id: app_id.into(),
+            cluster_name: DEFAULT_CLUSTER_NAME.into(),
+            namespaces: namespaces.into_iter().map(|x| x.into()).collect(),
+            ip: None,
+            extras_queries: vec![],
+        }
+    }
+
+    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
+        self.cluster_name = cluster_name.into();
+        self
+    }
+
+    pub fn ip(mut self, ip: IpValue) -> Self {
+        self.ip = Some(ip);
+        self
+    }
+
+    pub fn add_extras_query(
+        mut self,
+        name: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        self.extras_queries.push((name.into(), value.into()));
+        self
+    }
+
+    pub fn extras_queries(
+        mut self,
+        extras_queries: Vec<(impl Into<Cow<'static, str>>, impl Into<Cow<'static, str>>)>,
+    ) -> Self {
+        self.extras_queries = extras_queries
+            .into_iter()
+            .map(|(n, v)| (n.into(), v.into()))
+            .collect();
+        self
+    }
+
+    pub(crate) fn create_notifications(&self) -> Vec<Notification> {
+        self.namespaces
+            .iter()
+            .map(|namespace| Notification::new(namespace.clone()))
+            .collect()
+    }
+}

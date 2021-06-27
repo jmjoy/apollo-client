@@ -1,5 +1,6 @@
 use http::StatusCode;
 use std::str::Utf8Error;
+use tokio::task::JoinError;
 
 pub type ApolloClientResult<T> = Result<T, ApolloClientError>;
 
@@ -23,6 +24,9 @@ pub enum ApolloClientError {
     IniParse(#[from] ini::ParseError),
 
     #[error(transparent)]
+    Join(#[from] JoinError),
+
+    #[error(transparent)]
     ApolloResponse(#[from] ApolloResponseError),
 
     #[error("this URL is cannot-be-a-base")]
@@ -34,6 +38,8 @@ pub enum ApolloClientError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ApolloResponseError {
+    #[error("not modified")]
+    NotModified,
     #[error("bad request")]
     BadRequest,
     #[error("unauthorized")]
@@ -54,6 +60,7 @@ impl ApolloResponseError {
     pub(crate) fn from_status_code(status: StatusCode) -> Option<Self> {
         match status {
             StatusCode::OK => None,
+            StatusCode::NOT_MODIFIED => Some(Self::NotModified),
             StatusCode::BAD_REQUEST => Some(Self::BadRequest),
             StatusCode::UNAUTHORIZED => Some(Self::Unauthorized),
             StatusCode::FORBIDDEN => Some(Self::Forbidden),

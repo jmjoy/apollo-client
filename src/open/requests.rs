@@ -1,12 +1,9 @@
-use std::borrow::Cow;
-
-use http::Method;
-use serde::de::DeserializeOwned;
-
 use crate::{
     common::{PerformRequest, DEFAULT_CLUSTER_NAME},
+    errors::ApolloClientResult,
     open::responses::{OpenAppResponse, OpenEnvClusterResponse, OpenNamespaceResponse},
 };
+use std::borrow::Cow;
 
 const OPEN_API_PREFIX: &'static str = "/openapi/v1";
 
@@ -59,11 +56,11 @@ impl PerformRequest for OpenAppRequest {
         format!("{}/apps", OPEN_API_PREFIX)
     }
 
-    fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        match &self.app_ids {
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
+        Ok(match &self.app_ids {
             Some(app_ids) => vec![("appIds".into(), app_ids.join(",").into())],
             None => vec![],
-        }
+        })
     }
 }
 

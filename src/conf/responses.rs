@@ -1,5 +1,3 @@
-use crate::{common::PerformResponse, errors::ApolloClientResult};
-use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -12,3 +10,5 @@ pub struct FetchResponse {
     pub configurations: HashMap<String, String>,
     pub release_key: String,
 }
+
+implement_json_perform_response!(FetchResponse);

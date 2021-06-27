@@ -5,16 +5,13 @@
 pub mod requests;
 pub mod responses;
 
-pub use crate::errors::{ApolloClientError, ApolloClientResult};
 use crate::{
-    common::{handle_url, validate_response, PerformRequest, PerformResponse},
-    errors::{ApolloClientError::UrlCannotBeABase, ApolloResponseError},
+    common::{handle_url, validate_response, PerformResponse, DEFAULT_TIMEOUT},
+    errors::ApolloClientResult,
     open::requests::PerformOpenRequest,
 };
-use http::{header::AUTHORIZATION, HeaderMap, HeaderValue, StatusCode};
-use reqwest::{Client, ClientBuilder, IntoUrl, Response};
-use serde::de::DeserializeOwned;
-use std::{borrow::Cow, convert::TryInto, time::Duration};
+use http::{header::AUTHORIZATION, HeaderMap, HeaderValue};
+use reqwest::{Client, ClientBuilder};
 use url::Url;
 
 /// The builder of [OpenApiClient].
@@ -25,33 +22,29 @@ pub struct OpenApiClientBuilder {
 }
 
 impl OpenApiClientBuilder {
-    pub fn new(portal_url: Url, token: impl ToString) -> Self {
-        Self {
+    pub fn new(portal_url: Url, token: impl ToString) -> ApolloClientResult<Self> {
+        let mut builder = Self {
             portal_url,
             token: token.to_string(),
             client_builder: Default::default(),
-        }
+        };
+        let default_headers = builder.default_headers()?;
+        builder.client_builder = builder
+            .client_builder
+            .timeout(DEFAULT_TIMEOUT)
+            .default_headers(default_headers);
+        Ok(builder)
     }
 
-    pub fn connect_timeout(mut self, timeout: Duration) -> Self {
-        self.client_builder = self.client_builder.connect_timeout(timeout);
-        self
-    }
-
-    pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.client_builder = self.client_builder.timeout(timeout);
+    pub fn with_client_builder(mut self, f: impl FnOnce(ClientBuilder) -> ClientBuilder) -> Self {
+        self.client_builder = f(self.client_builder);
         self
     }
 
     pub fn build(self) -> ApolloClientResult<OpenApiClient> {
-        let default_headers = self.default_headers()?;
-
         Ok(OpenApiClient {
             portal_url: self.portal_url,
-            client: self
-                .client_builder
-                .default_headers(default_headers)
-                .build()?,
+            client: self.client_builder.build()?,
         })
     }
 
@@ -74,7 +67,9 @@ impl OpenApiClient {
         request: impl PerformOpenRequest<Response = R>,
     ) -> ApolloClientResult<R> {
         let url = handle_url(&request, self.portal_url.clone())?;
-        let response = self.client.request(request.method(), url).send().await?;
+        let mut request_builder = self.client.request(request.method(), url);
+        request_builder = request.request_builder(request_builder);
+        let response = request_builder.send().await?;
         validate_response(&response)?;
         <R>::from_response(response).await
     }

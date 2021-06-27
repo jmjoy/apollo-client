@@ -1,4 +1,5 @@
 use super::*;
+use crate::utils::canonicalize_namespace;
 
 #[test]
 fn test_ip_value_deserialize() -> ClientResult<()> {
@@ -209,17 +210,6 @@ fn test_client_get_listen_url_common(
     let url = client.get_listen_url(notifications)?;
     assert_eq!(&url, expect);
     Ok(())
-}
-
-#[test]
-fn test_canonicalize_namespace() {
-    assert_eq!(canonicalize_namespace("foo.properties"), "foo.properties");
-    assert_eq!(canonicalize_namespace("foo.xml"), "foo.xml");
-    assert_eq!(canonicalize_namespace("foo.yaml"), "foo.yaml");
-    assert_eq!(canonicalize_namespace("foo.yml"), "foo.yml");
-    assert_eq!(canonicalize_namespace("foo.json"), "foo.json");
-    assert_eq!(canonicalize_namespace("foo.txt"), "foo.txt");
-    assert_eq!(canonicalize_namespace("foo"), "foo.properties");
 }
 
 #[test]

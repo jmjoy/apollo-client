@@ -4,12 +4,55 @@ use crate::errors::{
 use async_trait::async_trait;
 use http::Method;
 use ini::{Ini, Properties};
-use reqwest::Response;
-use serde::de::DeserializeOwned;
-use std::{borrow::Cow, collections::HashMap};
+use reqwest::{RequestBuilder, Response};
+use std::{borrow::Cow, fmt, fmt::Display, time::Duration};
 use url::Url;
 
 pub(crate) const DEFAULT_CLUSTER_NAME: &'static str = "default";
+pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+pub(crate) const DEFAULT_NOTIFY_TIMEOUT: Duration = Duration::from_secs(90);
+
+/// Kind of a configuration namespace.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NamespaceKind {
+    Properties,
+    Xml,
+    Json,
+    Yaml,
+    Txt,
+}
+
+impl NamespaceKind {
+    /// Infer the configuration namespace kind.
+    pub fn infer_namespace_kind(namespace_name: &str) -> Self {
+        if namespace_name.ends_with(".xml") {
+            NamespaceKind::Xml
+        } else if namespace_name.ends_with(".json") {
+            NamespaceKind::Json
+        } else if namespace_name.ends_with(".yml") || namespace_name.ends_with(".yaml") {
+            NamespaceKind::Yaml
+        } else if namespace_name.ends_with(".txt") {
+            NamespaceKind::Txt
+        } else {
+            NamespaceKind::Properties
+        }
+    }
+}
+
+impl Display for NamespaceKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        Display::fmt(
+            match self {
+                NamespaceKind::Properties => "properties",
+                NamespaceKind::Xml => "xml",
+                NamespaceKind::Json => "json",
+                NamespaceKind::Yaml => "yaml",
+                NamespaceKind::Txt => "txt",
+            },
+            f,
+        )
+    }
+}
 
 pub trait PerformRequest {
     type Response: PerformResponse;
@@ -20,8 +63,12 @@ pub trait PerformRequest {
         Method::GET
     }
 
-    fn query(&self) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
-        vec![]
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
+        Ok(vec![])
+    }
+
+    fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
+        request_builder
     }
 }
 
@@ -44,7 +91,7 @@ impl PerformResponse for Properties {
 pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> ApolloClientResult<Url> {
     let mut url = base_url;
     let path = &request.path();
-    let query = &request.query();
+    let query = &request.queries()?;
 
     url.path_segments_mut()
         .map_err(|_| UrlCannotBeABase)?

@@ -1,10 +1,13 @@
-mod common;
+use futures_util::{pin_mut, stream::StreamExt};
 
 use apollo_client::conf::{
-    requests::{CachedFetchRequest, FetchRequest, IpValue},
+    meta::{IpValue, Notification},
+    requests::{CachedFetchRequest, FetchRequest, NotifyRequest, Watch},
     ApolloConfClientBuilder,
 };
 use common::setup;
+
+mod common;
 
 #[tokio::test]
 async fn test_conf() {
@@ -12,6 +15,7 @@ async fn test_conf() {
 
     let client =
         ApolloConfClientBuilder::new_via_config_service("http://localhost:8080".parse().unwrap())
+            .unwrap()
             .build()
             .unwrap();
 
@@ -26,4 +30,18 @@ async fn test_conf() {
         .await
         .unwrap();
     dbg!(r);
+
+    let r = client
+        .execute(NotifyRequest::new(
+            "TestApp1",
+            vec![Notification::new("application.properties")],
+        ))
+        .await
+        .unwrap();
+    dbg!(r);
+
+    let mut stream = Box::pin(client.watch(Watch::new("TestApp1", ["foo2"])));
+    while let Some(x) = stream.next().await {
+        dbg!(x);
+    }
 }

@@ -1,6 +1,5 @@
 use chrono::{DateTime, Local};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::time::SystemTime;
+use serde::{Deserialize, Serialize};
 
 macro_rules! open_response_with_base_fields {
     ($name:ident, { $( ($i:ident, $t:ty) ,)* }) => {
