@@ -44,19 +44,15 @@ serde = "1.0.126"
 serde_json = { version = "1.0.64", features = ["preserve_order"] }
 systemstat = { version = "0.1.8", optional = true }
 thiserror = "1.0.25"
-tokio = { version = "1.7.1", features = ["time"] }
 url = "2.2.2"
 
 [dev-dependencies]
 env_logger = "0.8.4"
 tokio = { version = "1.7.1", features = ["full"] }
-hyper = { version = "0.14.9", features = ["client", "http1", "server", "tcp"] }
 futures = { version = "0.3.15", features = ["alloc"] }
 
 [[test]]
-name = "listen_change"
-path = "tests/listen_change.rs"
-required-features = ["mock-listen"]
+name = "conf"
 
 [[test]]
 name = "open"

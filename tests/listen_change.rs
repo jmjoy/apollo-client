@@ -7,7 +7,7 @@ mod common;
 #[tokio::test]
 async fn listen_change_0() {
     common::setup();
-    common::test_timeout(Duration::from_secs(10));
+    common::ensure_timeout(Duration::from_secs(10));
     let mut receiver = common::new_mock_server(8090);
     receiver.recv().await.unwrap();
 
@@ -51,7 +51,7 @@ async fn listen_change_0() {
 #[tokio::test]
 async fn listen_change_1() {
     common::setup();
-    common::test_timeout(Duration::from_secs(10));
+    common::ensure_timeout(Duration::from_secs(10));
 
     tokio::spawn(async move {
         sleep(Duration::from_secs(5)).await;

@@ -53,7 +53,7 @@ impl Notification {
     }
 }
 
-implement_json_perform_response!(Vec<Notification>);
+implement_json_perform_response_for! { Vec<Notification> }
 
 /// Apollo config api `ip` param value.
 #[derive(Debug, Clone, PartialEq)]

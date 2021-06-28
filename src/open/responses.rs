@@ -1,9 +1,9 @@
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
-macro_rules! open_response_with_base_fields {
+macro_rules! struct_open_response_with_base_fields {
     ($name:ident, { $( ($i:ident, $t:ty) ,)* }) => {
-        #[derive(Debug, Serialize, Deserialize)]
+        #[derive(Clone, Debug, Serialize, Deserialize)]
         #[serde(rename_all = "camelCase")]
         pub struct $name {
             $(pub $i : $t,)*
@@ -17,6 +17,19 @@ macro_rules! open_response_with_base_fields {
     };
 }
 
+macro_rules! struct_open_response_with_namespace_fields {
+    ($name:ident, { $( ($i:ident, $t:ty) ,)* }) => {
+        struct_open_response_with_base_fields! {
+            $name,
+            {
+                (app_id, String),
+                (cluster_name, String),
+                (namespace_name, String),
+            }
+        }
+    };
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenEnvClusterResponse {
@@ -24,9 +37,9 @@ pub struct OpenEnvClusterResponse {
     pub clusters: Vec<String>,
 }
 
-implement_json_perform_response!(Vec<OpenEnvClusterResponse>);
+implement_json_perform_response_for! { Vec<OpenEnvClusterResponse> }
 
-open_response_with_base_fields! {
+struct_open_response_with_base_fields! {
     OpenAppResponse,
     {
         (name, String),
@@ -38,14 +51,11 @@ open_response_with_base_fields! {
     }
 }
 
-implement_json_perform_response!(Vec<OpenAppResponse>);
+implement_json_perform_response_for! { Vec<OpenAppResponse> }
 
-open_response_with_base_fields! {
+struct_open_response_with_namespace_fields! {
     OpenNamespaceResponse,
     {
-        (app_id, String),
-        (cluster_name, String),
-        (namespace_name, String),
         (comment, Option<String>),
         (format, String),
         (is_public, bool),
@@ -53,9 +63,9 @@ open_response_with_base_fields! {
     }
 }
 
-implement_json_perform_response!(Vec<OpenNamespaceResponse>);
+implement_json_perform_response_for! { Vec<OpenNamespaceResponse> }
 
-open_response_with_base_fields! {
+struct_open_response_with_base_fields! {
     OpenItemResponse,
     {
         (key, String),
@@ -64,4 +74,16 @@ open_response_with_base_fields! {
     }
 }
 
-implement_json_perform_response!(Vec<OpenItemResponse>);
+implement_json_perform_response_for! { OpenItemResponse }
+implement_json_perform_response_for! { Vec<OpenItemResponse> }
+
+struct_open_response_with_namespace_fields! {
+    OpenPublishResponse,
+    {
+        (name, String),
+        (configurations, HashMap<String, String>),
+        (comment, Option<String>),
+    }
+}
+
+implement_json_perform_response_for! { OpenPublishResponse }

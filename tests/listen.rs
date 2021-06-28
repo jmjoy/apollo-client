@@ -8,7 +8,7 @@ mod common;
 /// Test the situation where just one namespace and the type is `.properties`.
 async fn test_client_listen_0() -> ClientResult<()> {
     common::setup();
-    common::test_timeout(Duration::from_secs(5));
+    common::ensure_timeout(Duration::from_secs(5));
 
     let client_config = ClientConfig {
         app_id: "SampleApp",

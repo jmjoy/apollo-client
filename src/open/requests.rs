@@ -1,9 +1,18 @@
 use crate::{
-    common::{PerformRequest, DEFAULT_CLUSTER_NAME},
+    common::{PerformRequest, PerformResponse, DEFAULT_CLUSTER_NAME},
     errors::ApolloClientResult,
-    open::responses::{OpenAppResponse, OpenEnvClusterResponse, OpenNamespaceResponse},
+    open::{
+        meta::{Namespace, OpenCreatedItem, Release},
+        responses::{
+            OpenAppResponse, OpenEnvClusterResponse, OpenItemResponse, OpenNamespaceResponse,
+            OpenPublishResponse,
+        },
+    },
 };
-use std::borrow::Cow;
+use http::Method;
+use reqwest::RequestBuilder;
+use serde::{Deserialize, Serialize};
+use std::{borrow::Cow, prelude::rust_2015::Result::Ok};
 
 const OPEN_API_PREFIX: &'static str = "/openapi/v1";
 
@@ -103,3 +112,90 @@ impl PerformRequest for OpenAllNamespaceRequest {
 }
 
 impl PerformOpenRequest for OpenAllNamespaceRequest {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateItemRequest {
+    env: Cow<'static, str>,
+    app_id: Cow<'static, str>,
+    cluster_name: Cow<'static, str>,
+    namespace_name: Cow<'static, str>,
+    item: OpenCreatedItem,
+}
+
+impl CreateItemRequest {
+    pub fn new(
+        env: impl Into<Cow<'static, str>>,
+        app_id: impl Into<Cow<'static, str>>,
+        namespace_name: impl Into<Cow<'static, str>>,
+        item: OpenCreatedItem,
+    ) -> Self {
+        Self {
+            env: env.into(),
+            app_id: app_id.into(),
+            cluster_name: DEFAULT_CLUSTER_NAME.into(),
+            namespace_name: namespace_name.into(),
+            item,
+        }
+    }
+
+    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
+        self.cluster_name = cluster_name.into();
+        self
+    }
+}
+
+impl PerformRequest for CreateItemRequest {
+    type Response = OpenItemResponse;
+
+    fn path(&self) -> String {
+        format!(
+            "{}/envs/{}/apps/{}/clusters/{}/namespaces/{}/items",
+            OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name, self.namespace_name
+        )
+    }
+
+    fn method(&self) -> Method {
+        Method::POST
+    }
+
+    fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
+        request_builder.json(&self.item)
+    }
+}
+
+impl PerformOpenRequest for CreateItemRequest {}
+
+#[derive(Debug, Clone)]
+pub struct PublishNamespaceRequest<'a> {
+    namespace: Namespace<'a>,
+    release: Release<'a>,
+}
+
+impl<'a> PublishNamespaceRequest<'a> {
+    pub fn new(namespace: Namespace<'a>, release: Release<'a>) -> Self {
+        Self { namespace, release }
+    }
+}
+
+impl PerformRequest for PublishNamespaceRequest<'_> {
+    type Response = OpenPublishResponse;
+
+    fn path(&self) -> String {
+        format!(
+            "{}/envs/{}/apps/{}/clusters/{}/namespaces/{}/releases",
+            OPEN_API_PREFIX,
+            self.namespace.env,
+            self.namespace.app_id,
+            self.namespace.cluster_name,
+            self.namespace.namespace_name
+        )
+    }
+
+    fn method(&self) -> Method {
+        Method::POST
+    }
+
+    fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
+        request_builder.json(&self.release)
+    }
+}

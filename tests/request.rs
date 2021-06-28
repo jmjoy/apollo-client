@@ -1,9 +1,6 @@
 use apollo_client::{Client, ClientConfig, ClientResult, IpValue, Response};
 use std::collections::HashMap;
 
-#[cfg(feature = "xml")]
-use serde_derive::Deserialize;
-
 mod common;
 
 #[tokio::test]

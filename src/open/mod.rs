@@ -2,6 +2,7 @@
 //!
 //! Ref: <https://www.apolloconfig.com/#/zh/usage/apollo-open-api-platform>.
 
+pub mod meta;
 pub mod requests;
 pub mod responses;
 

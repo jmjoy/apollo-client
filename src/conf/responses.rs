@@ -11,4 +11,4 @@ pub struct FetchResponse {
     pub release_key: String,
 }
 
-implement_json_perform_response!(FetchResponse);
+implement_json_perform_response_for! { FetchResponse }

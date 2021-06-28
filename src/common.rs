@@ -83,7 +83,7 @@ impl PerformResponse for Properties {
         let content = response.text().await?;
         let i = Ini::load_from_str(&content)?;
         Ok(i.section(None::<&'static str>)
-            .ok_or(ApolloClientError::EmptyConfig)?
+            .ok_or(ApolloClientError::EmptyConfiguration)?
             .clone())
     }
 }
@@ -110,7 +110,7 @@ pub(crate) fn validate_response(response: &Response) -> ApolloClientResult<()> {
     }
 }
 
-macro_rules! implement_json_perform_response {
+macro_rules! implement_json_perform_response_for {
     ($t:ty) => {
         #[async_trait::async_trait]
         impl $crate::common::PerformResponse for $t {

@@ -2,7 +2,6 @@
 
 use http::StatusCode;
 use std::str::Utf8Error;
-use tokio::task::JoinError;
 
 pub type ApolloClientResult<T> = Result<T, ApolloClientError>;
 
@@ -26,16 +25,13 @@ pub enum ApolloClientError {
     IniParse(#[from] ini::ParseError),
 
     #[error(transparent)]
-    Join(#[from] JoinError),
-
-    #[error(transparent)]
     ApolloResponse(#[from] ApolloResponseError),
 
     #[error("this URL is cannot-be-a-base")]
     UrlCannotBeABase,
 
-    #[error("Config is empty")]
-    EmptyConfig,
+    #[error("configuration is empty")]
+    EmptyConfiguration,
 }
 
 #[derive(thiserror::Error, Debug)]

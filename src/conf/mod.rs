@@ -97,7 +97,7 @@ impl ApolloConfClient {
                 )
                 .await
             {
-                Ok(_) => {},
+                Ok(n) => {dbg!(&n);},
                 Err(ApolloClientError::Reqwest(e)) if e.is_timeout() => {},
                 Err(e) => Err(e)?,
             }
