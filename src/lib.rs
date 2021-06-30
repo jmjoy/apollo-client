@@ -27,6 +27,7 @@ $ cargo add -s --features full apollo-client
 
 - [x] Fetch config via config service.
 - [ ] Fetch config via mata service.
+- [ ] Authorization for configuration api.
 - [x] Apollo open apis.
 
 # Features
@@ -55,7 +56,7 @@ You can find some examples in [the examples directory](https://github.com/jmjoy/
 */
 
 #[macro_use]
-pub mod common;
+pub mod meta;
 #[cfg(feature = "conf")]
 #[cfg_attr(docsrs, doc(cfg(feature = "conf")))]
 pub mod conf;

@@ -1,38 +1,30 @@
-use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-
 use crate::conf::requests::{FetchRequest, Watch};
-use std::fmt::{self, Display};
+use serde::{Deserialize, Serialize};
+use std::{
+    borrow::Cow,
+    fmt::{self, Display},
+};
+use typed_builder::TypedBuilder;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
+#[builder(doc, field_defaults(setter(into)))]
 pub struct Notification {
     namespace_name: Cow<'static, str>,
+    #[builder(default = -1)]
     notification_id: i32,
 }
 
 impl Notification {
-    pub fn new(namespace_name: impl Into<Cow<'static, str>>) -> Notification {
-        let mut namespace_name = namespace_name.into();
-
-        if namespace_name.ends_with(".properties") {
-            namespace_name = (&namespace_name[..namespace_name.len() - ".properties".len()])
-                .to_string()
-                .into();
-        }
-
-        Self {
-            namespace_name,
-            notification_id: -1,
-        }
-    }
-
-    pub fn notification_id(mut self, notification_id: i32) -> Notification {
-        self.notification_id = notification_id;
+    pub(crate) fn canonicalize(mut self) -> Self {
+        self.namespace_name = (&self.namespace_name
+            [..self.namespace_name.len() - ".properties".len()])
+            .to_string()
+            .into();
         self
     }
 
-    pub(crate) fn update_notifications(older: &mut [Notification], newer: &[Notification]) {
+    pub(crate) fn update_notifications(older: &mut [Self], newer: &[Self]) {
         for newer_item in newer {
             for older_item in older.iter_mut() {
                 if older_item.namespace_name == newer_item.namespace_name {
@@ -43,7 +35,7 @@ impl Notification {
     }
 
     pub(crate) fn create_fetch_requests(
-        notifications: impl IntoIterator<Item = Notification>,
+        notifications: impl IntoIterator<Item = Self>,
         watch: &Watch,
     ) -> Vec<FetchRequest> {
         notifications
@@ -143,11 +135,16 @@ mod tests {
 
     #[test]
     fn test_notification_new() {
-        let notification = Notification::new("foo.properties");
-        assert_eq!(notification.namespace_name, "foo");
+        let notification = Notification::builder()
+            .namespace_name("foo.properties")
+            .build();
+        assert_eq!(notification.namespace_name, "foo.properties");
         assert_eq!(notification.notification_id, -1);
 
-        let notification = Notification::new("foo.yaml").notification_id(10);
+        let notification = Notification::builder()
+            .namespace_name("foo.yaml")
+            .notification_id(10)
+            .build();
         assert_eq!(notification.namespace_name, "foo.yaml");
         assert_eq!(notification.notification_id, 10);
     }
@@ -155,18 +152,30 @@ mod tests {
     #[test]
     fn test_update_notifications() {
         let mut notifications = [
-            Notification::new("foo"),
-            Notification::new("bar").notification_id(10),
+            Notification::builder().namespace_name("foo").build(),
+            Notification::builder()
+                .namespace_name("bar")
+                .notification_id(10)
+                .build(),
         ];
         Notification::update_notifications(
             &mut notifications,
-            &[Notification::new("foo").notification_id(100)],
+            &[Notification::builder()
+                .namespace_name("foo")
+                .notification_id(100)
+                .build()],
         );
         assert_eq!(
             notifications,
             [
-                Notification::new("foo").notification_id(100),
-                Notification::new("bar").notification_id(10),
+                Notification::builder()
+                    .namespace_name("foo")
+                    .notification_id(100)
+                    .build(),
+                Notification::builder()
+                    .namespace_name("bar")
+                    .notification_id(10)
+                    .build(),
             ]
         );
     }

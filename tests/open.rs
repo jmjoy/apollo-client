@@ -3,14 +3,16 @@ mod common;
 use apollo_client::{
     errors::{ApolloClientError, ApolloResponseError},
     open::{
-        meta::OpenCreatedItem,
+        meta::{Namespace, OpenCreatedItem, Release},
         requests::{
-            CreateItemRequest, OpenAllNamespaceRequest, OpenAppRequest, OpenEnvClusterRequest,
+            OpenAppRequest, OpenClusterRequest, OpenCreateItemRequest, OpenEnvClusterRequest,
+            OpenNamespaceRequest, OpenPublishNamespaceRequest,
         },
         OpenApiClient, OpenApiClientBuilder,
     },
 };
 use common::setup;
+use std::collections::HashMap;
 
 #[tokio::test]
 async fn test_env_cluster_request() {
@@ -20,7 +22,7 @@ async fn test_env_cluster_request() {
 
     {
         let response = client
-            .execute(OpenEnvClusterRequest::new("SampleApp"))
+            .execute(OpenEnvClusterRequest::builder().app_id("SampleApp").build())
             .await
             .unwrap();
 
@@ -37,20 +39,81 @@ async fn test_app_request() {
     let client = create_open_client();
 
     {
-        // let response = client.execute(OpenAppRequest::new(vec!["IRC-ApolloClientTest"])).await.unwrap();
-        // dbg!(response);
+        let responses = client
+            .execute(
+                OpenAppRequest::builder()
+                    .app_ids(["NotExists".into()])
+                    .build(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(responses.len(), 0);
+    }
+
+    {
+        let responses = client
+            .execute(
+                OpenAppRequest::builder()
+                    .app_ids(vec!["SampleApp".into(), "TestApp1".into()])
+                    .build(),
+            )
+            .await
+            .unwrap();
+        let responses = responses
+            .into_iter()
+            .map(|response| (response.app_id.clone(), response))
+            .collect::<HashMap<_, _>>();
+        assert_eq!(responses.len(), 2);
+        assert_eq!(responses["SampleApp"].name, "Sample App");
+        assert_eq!(responses["SampleApp"].org_id, "TEST1");
+        assert_eq!(responses["TestApp1"].name, "TestApp1");
+        assert_eq!(responses["TestApp1"].org_id, "TEST1");
+    }
+
+    {
+        let responses = client
+            .execute(OpenAppRequest::builder().build())
+            .await
+            .unwrap();
+        let responses = responses
+            .into_iter()
+            .map(|response| (response.app_id.clone(), response))
+            .collect::<HashMap<_, _>>();
+        assert_eq!(responses.len(), 3);
+        assert_eq!(responses["SampleApp"].name, "Sample App");
+        assert_eq!(responses["SampleApp"].org_id, "TEST1");
+        assert_eq!(responses["TestApp1"].name, "TestApp1");
+        assert_eq!(responses["TestApp1"].org_id, "TEST1");
+        assert_eq!(responses["TestApp2"].name, "TestApp2");
+        assert_eq!(responses["TestApp2"].org_id, "TEST1");
     }
 }
 
 #[tokio::test]
-async fn test_all_namespace_request() {
+async fn test_cluster_request() {
     setup();
 
     let client = create_open_client();
 
     {
         let response = client
-            .execute(OpenAllNamespaceRequest::new("DEV", "SampleApp"))
+            .execute(OpenClusterRequest::new("DEV", "SampleApp"))
+            .await
+            .unwrap();
+        assert_eq!(response.name, "default");
+        assert_eq!(response.app_id, "SampleApp");
+    }
+}
+
+#[tokio::test]
+async fn test_namespace_request() {
+    setup();
+
+    let client = create_open_client();
+
+    {
+        let response = client
+            .execute(OpenNamespaceRequest::new("DEV", "SampleApp"))
             .await
             .unwrap();
     }
@@ -64,10 +127,8 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(CreateItemRequest::new(
-                "DEV",
-                "TestApp2",
-                "application",
+            .execute(OpenCreateItemRequest::new(
+                Namespace::new("DEV", "TestApp2", "application"),
                 OpenCreatedItem::new("timeout", "3000", "apollo"),
             ))
             .await
@@ -81,10 +142,8 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(CreateItemRequest::new(
-                "DEV",
-                "TestApp2",
-                "application",
+            .execute(OpenCreateItemRequest::new(
+                Namespace::new("DEV", "TestApp2", "application"),
                 OpenCreatedItem::new("connect_timeout", "100", "apollo").comment("connect timeout"),
             ))
             .await
@@ -98,10 +157,8 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(CreateItemRequest::new(
-                "DEV",
-                "TestApp2",
-                "application",
+            .execute(OpenCreateItemRequest::new(
+                Namespace::new("DEV", "TestApp2", "application"),
                 OpenCreatedItem::new("some_key", "some_value", "not_exists_user"),
             ))
             .await;
@@ -112,6 +169,21 @@ async fn test_curd_item_request() {
                 ApolloResponseError::BadRequest
             ))
         ));
+    }
+
+    {
+        let response = client
+            .execute(OpenPublishNamespaceRequest::new(
+                Namespace::new("DEV", "TestApp2", "application"),
+                Release::new("test-release", "apollo"),
+            ))
+            .await
+            .unwrap();
+
+        assert_eq!(response.app_id, "TestApp2");
+        assert_eq!(response.cluster_name, "default");
+        assert_eq!(response.namespace_name, "application");
+        assert_eq!(response.data_change_created_by, "apollo");
     }
 }
 

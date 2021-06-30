@@ -7,8 +7,8 @@ pub mod requests;
 pub mod responses;
 
 use crate::{
-    common::{handle_url, validate_response, PerformResponse, DEFAULT_TIMEOUT},
     errors::ApolloClientResult,
+    meta::{handle_url, validate_response, PerformResponse, DEFAULT_TIMEOUT},
     open::requests::PerformOpenRequest,
 };
 use http::{header::AUTHORIZATION, HeaderMap, HeaderValue};

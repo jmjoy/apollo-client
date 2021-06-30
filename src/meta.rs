@@ -63,7 +63,7 @@ pub trait PerformRequest {
         Method::GET
     }
 
-    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
         Ok(vec![])
     }
 
@@ -113,7 +113,7 @@ pub(crate) fn validate_response(response: &Response) -> ApolloClientResult<()> {
 macro_rules! implement_json_perform_response_for {
     ($t:ty) => {
         #[async_trait::async_trait]
-        impl $crate::common::PerformResponse for $t {
+        impl $crate::meta::PerformResponse for $t {
             async fn from_response(
                 response: ::reqwest::Response,
             ) -> $crate::errors::ApolloClientResult<Self> {

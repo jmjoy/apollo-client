@@ -23,7 +23,13 @@ async fn test_cached_fetch_request() {
 
     {
         let properties = client
-            .execute(CachedFetchRequest::new("SampleApp", "application").ip(IpValue::HostName))
+            .execute(
+                CachedFetchRequest::builder()
+                    .app_id("SampleApp")
+                    .namespace_name("application")
+                    .ip(IpValue::HostName)
+                    .build(),
+            )
             .await
             .unwrap();
         assert_eq!(properties, {
@@ -35,7 +41,13 @@ async fn test_cached_fetch_request() {
 
     {
         let properties = client
-            .execute(CachedFetchRequest::new("SampleApp", "application.json").ip(IpValue::HostName))
+            .execute(
+                CachedFetchRequest::builder()
+                    .app_id("SampleApp")
+                    .namespace_name("application.json")
+                    .ip(IpValue::HostName)
+                    .build(),
+            )
             .await
             .unwrap();
         assert_eq!(properties, {
@@ -48,7 +60,11 @@ async fn test_cached_fetch_request() {
     {
         let result = client
             .execute(
-                CachedFetchRequest::new("NotExistsApp", "application.json").ip(IpValue::HostName),
+                CachedFetchRequest::builder()
+                    .app_id("NotExistsApp")
+                    .namespace_name("application.json")
+                    .ip(IpValue::HostName)
+                    .build(),
             )
             .await;
         assert!(matches!(
@@ -62,7 +78,11 @@ async fn test_cached_fetch_request() {
     {
         let result = client
             .execute(
-                CachedFetchRequest::new("SampleApp", "notExistsNamesapce").ip(IpValue::HostName),
+                CachedFetchRequest::builder()
+                    .app_id("SampleApp")
+                    .namespace_name("notExistsNamesapce")
+                    .ip(IpValue::HostName)
+                    .build(),
             )
             .await;
         assert!(matches!(
@@ -75,7 +95,13 @@ async fn test_cached_fetch_request() {
 
     {
         let result = client
-            .execute(CachedFetchRequest::new("TestApp1", "application").ip(IpValue::HostName))
+            .execute(
+                CachedFetchRequest::builder()
+                    .app_id("TestApp1")
+                    .namespace_name("application")
+                    .ip(IpValue::HostName)
+                    .build(),
+            )
             .await;
         assert!(matches!(result, Err(ApolloClientError::EmptyConfiguration)));
     }

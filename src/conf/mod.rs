@@ -7,7 +7,6 @@ pub mod requests;
 pub mod responses;
 
 use crate::{
-    common::{handle_url, validate_response, PerformResponse, DEFAULT_TIMEOUT},
     conf::{
         meta::Notification,
         requests::{FetchRequest, NotifyRequest, PerformConfRequest, Watch},
@@ -16,6 +15,9 @@ use crate::{
     errors::{
         ApolloClientError, ApolloClientError::ApolloResponse, ApolloClientResult,
         ApolloResponseError::NotModified,
+    },
+    meta::{
+        handle_url, validate_response, PerformResponse, DEFAULT_NOTIFY_TIMEOUT, DEFAULT_TIMEOUT,
     },
 };
 use async_stream::try_stream;
@@ -92,12 +94,11 @@ impl ApolloConfClient {
             // and return 304 when the namespace is never be notified before.
             match self
                 .execute(
-                    NotifyRequest::from_watch(&request, global_notifications.clone())
-                        .timeout(Duration::from_secs(1)),
+                    NotifyRequest::from_watch(&request, global_notifications.clone(), Duration::from_secs(1))
                 )
                 .await
             {
-                Ok(n) => {dbg!(&n);},
+                Ok(_) => {},
                 Err(ApolloClientError::Reqwest(e)) if e.is_timeout() => {},
                 Err(e) => Err(e)?,
             }
@@ -107,6 +108,7 @@ impl ApolloConfClient {
                     .execute(NotifyRequest::from_watch(
                         &request,
                         global_notifications.clone(),
+                        DEFAULT_NOTIFY_TIMEOUT,
                     ))
                     .await
                 {
@@ -114,7 +116,6 @@ impl ApolloConfClient {
                     Err(ApolloResponse(NotModified)) => continue,
                     Err(e) => Err(e)?,
                 };
-                dbg!(&notifications);
 
                 Notification::update_notifications(&mut global_notifications, &notifications);
                 let requests = Notification::create_fetch_requests(notifications, &request);

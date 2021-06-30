@@ -87,3 +87,13 @@ struct_open_response_with_namespace_fields! {
 }
 
 implement_json_perform_response_for! { OpenPublishResponse }
+
+struct_open_response_with_base_fields! {
+    OpenClusterResponse,
+    {
+        (name, String),
+        (app_id, String),
+    }
+}
+
+implement_json_perform_response_for! { OpenClusterResponse }

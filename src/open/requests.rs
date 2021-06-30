@@ -1,34 +1,28 @@
 use crate::{
-    common::{PerformRequest, PerformResponse, DEFAULT_CLUSTER_NAME},
     errors::ApolloClientResult,
+    meta::{PerformRequest, DEFAULT_CLUSTER_NAME},
     open::{
         meta::{Namespace, OpenCreatedItem, Release},
         responses::{
-            OpenAppResponse, OpenEnvClusterResponse, OpenItemResponse, OpenNamespaceResponse,
-            OpenPublishResponse,
+            OpenAppResponse, OpenClusterResponse, OpenEnvClusterResponse, OpenItemResponse,
+            OpenNamespaceResponse, OpenPublishResponse,
         },
     },
 };
 use http::Method;
 use reqwest::RequestBuilder;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, prelude::rust_2015::Result::Ok};
+use std::borrow::Cow;
+use typed_builder::TypedBuilder;
 
 const OPEN_API_PREFIX: &'static str = "/openapi/v1";
 
 pub trait PerformOpenRequest: PerformRequest {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, TypedBuilder)]
+#[builder(doc, field_defaults(setter(into)))]
 pub struct OpenEnvClusterRequest {
-    app_id: String,
-}
-
-impl OpenEnvClusterRequest {
-    pub fn new(app_id: impl ToString) -> Self {
-        Self {
-            app_id: app_id.to_string(),
-        }
-    }
+    app_id: Cow<'static, str>,
 }
 
 impl PerformRequest for OpenEnvClusterRequest {
@@ -41,21 +35,11 @@ impl PerformRequest for OpenEnvClusterRequest {
 
 impl PerformOpenRequest for OpenEnvClusterRequest {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, TypedBuilder)]
+#[builder(doc, field_defaults(setter(into)))]
 pub struct OpenAppRequest {
+    #[builder(default, setter(strip_option))]
     app_ids: Option<Vec<String>>,
-}
-
-impl OpenAppRequest {
-    pub fn new<S: ToString>(app_ids: impl Into<Vec<S>>) -> Self {
-        Self {
-            app_ids: Some(app_ids.into().into_iter().map(|s| s.to_string()).collect()),
-        }
-    }
-
-    pub fn all() -> Self {
-        Self { app_ids: None }
-    }
 }
 
 impl PerformRequest for OpenAppRequest {
@@ -65,27 +49,60 @@ impl PerformRequest for OpenAppRequest {
         format!("{}/apps", OPEN_API_PREFIX)
     }
 
-    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
-        Ok(match &self.app_ids {
-            Some(app_ids) => vec![("appIds".into(), app_ids.join(",").into())],
-            None => vec![],
-        })
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
+        Ok(self
+            .app_ids
+            .as_ref()
+            .map(|app_ids| vec![("appIds".into(), app_ids.join(",").into())])
+            .unwrap_or_default())
     }
 }
 
 impl PerformOpenRequest for OpenAppRequest {}
 
 #[derive(Clone, Debug)]
-pub struct OpenNamespaceRequest {}
+pub struct OpenClusterRequest {
+    env: Cow<'static, str>,
+    app_id: Cow<'static, str>,
+    cluster_name: Cow<'static, str>,
+}
+
+impl OpenClusterRequest {
+    pub fn new(env: impl Into<Cow<'static, str>>, app_id: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            env: env.into(),
+            app_id: app_id.into(),
+            cluster_name: DEFAULT_CLUSTER_NAME.into(),
+        }
+    }
+
+    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
+        self.cluster_name = cluster_name.into();
+        self
+    }
+}
+
+impl PerformRequest for OpenClusterRequest {
+    type Response = OpenClusterResponse;
+
+    fn path(&self) -> String {
+        format!(
+            "{}/envs/{}/apps/{}/clusters/{}",
+            OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name
+        )
+    }
+}
+
+impl PerformOpenRequest for OpenClusterRequest {}
 
 #[derive(Clone, Debug)]
-pub struct OpenAllNamespaceRequest {
+pub struct OpenNamespaceRequest {
     env: String,
     app_id: String,
     cluster_name: Cow<'static, str>,
 }
 
-impl OpenAllNamespaceRequest {
+impl OpenNamespaceRequest {
     pub fn new(env: impl ToString, app_id: impl ToString) -> Self {
         Self {
             env: env.to_string(),
@@ -100,7 +117,7 @@ impl OpenAllNamespaceRequest {
     }
 }
 
-impl PerformRequest for OpenAllNamespaceRequest {
+impl PerformRequest for OpenNamespaceRequest {
     type Response = Vec<OpenNamespaceResponse>;
 
     fn path(&self) -> String {
@@ -111,46 +128,31 @@ impl PerformRequest for OpenAllNamespaceRequest {
     }
 }
 
-impl PerformOpenRequest for OpenAllNamespaceRequest {}
+impl PerformOpenRequest for OpenNamespaceRequest {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateItemRequest {
-    env: Cow<'static, str>,
-    app_id: Cow<'static, str>,
-    cluster_name: Cow<'static, str>,
-    namespace_name: Cow<'static, str>,
+#[derive(Debug, Clone)]
+pub struct OpenCreateItemRequest {
+    namespace: Namespace,
     item: OpenCreatedItem,
 }
 
-impl CreateItemRequest {
-    pub fn new(
-        env: impl Into<Cow<'static, str>>,
-        app_id: impl Into<Cow<'static, str>>,
-        namespace_name: impl Into<Cow<'static, str>>,
-        item: OpenCreatedItem,
-    ) -> Self {
-        Self {
-            env: env.into(),
-            app_id: app_id.into(),
-            cluster_name: DEFAULT_CLUSTER_NAME.into(),
-            namespace_name: namespace_name.into(),
-            item,
-        }
-    }
-
-    pub fn cluster_name(mut self, cluster_name: impl Into<Cow<'static, str>>) -> Self {
-        self.cluster_name = cluster_name.into();
-        self
+impl OpenCreateItemRequest {
+    pub fn new(namespace: Namespace, item: OpenCreatedItem) -> Self {
+        Self { namespace, item }
     }
 }
 
-impl PerformRequest for CreateItemRequest {
+impl PerformRequest for OpenCreateItemRequest {
     type Response = OpenItemResponse;
 
     fn path(&self) -> String {
         format!(
             "{}/envs/{}/apps/{}/clusters/{}/namespaces/{}/items",
-            OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name, self.namespace_name
+            OPEN_API_PREFIX,
+            self.namespace.env,
+            self.namespace.app_id,
+            self.namespace.cluster_name,
+            self.namespace.namespace_name
         )
     }
 
@@ -163,21 +165,28 @@ impl PerformRequest for CreateItemRequest {
     }
 }
 
-impl PerformOpenRequest for CreateItemRequest {}
+impl PerformOpenRequest for OpenCreateItemRequest {}
 
 #[derive(Debug, Clone)]
-pub struct PublishNamespaceRequest<'a> {
-    namespace: Namespace<'a>,
-    release: Release<'a>,
+pub struct OpenUpdateItemRequest {
+    namespace: Namespace,
 }
 
-impl<'a> PublishNamespaceRequest<'a> {
-    pub fn new(namespace: Namespace<'a>, release: Release<'a>) -> Self {
+impl OpenUpdateItemRequest {}
+
+#[derive(Debug, Clone)]
+pub struct OpenPublishNamespaceRequest {
+    namespace: Namespace,
+    release: Release,
+}
+
+impl OpenPublishNamespaceRequest {
+    pub fn new(namespace: Namespace, release: Release) -> Self {
         Self { namespace, release }
     }
 }
 
-impl PerformRequest for PublishNamespaceRequest<'_> {
+impl PerformRequest for OpenPublishNamespaceRequest {
     type Response = OpenPublishResponse;
 
     fn path(&self) -> String {
@@ -199,3 +208,5 @@ impl PerformRequest for PublishNamespaceRequest<'_> {
         request_builder.json(&self.release)
     }
 }
+
+impl PerformOpenRequest for OpenPublishNamespaceRequest {}
