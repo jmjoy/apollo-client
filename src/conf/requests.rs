@@ -68,6 +68,10 @@ pub struct FetchRequest {
 }
 
 impl FetchRequest {
+    pub(crate) fn namespace_name(&self) -> String {
+        self.namespace_name.to_string()
+    }
+
     pub(crate) fn from_watch(watch: &Watch, namespace_name: impl Into<Cow<'static, str>>) -> Self {
         Self {
             app_id: watch.app_id.clone(),
@@ -143,18 +147,19 @@ impl PerformRequest for NotifyRequest {
     }
 
     fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
-        let notifications = self
-            .notifications
-            .iter()
-            .map(|n| Notification::canonicalize(n.clone()))
-            .collect::<Vec<_>>();
+        let notifications = &self.notifications;
+        // let notifications = &self
+        //     .notifications
+        //     .iter()
+        //     .map(|n| Notification::canonicalize(n.clone()))
+        //     .collect::<Vec<_>>();
 
         Ok(vec![
             ("appId".into(), self.app_id.clone()),
             ("cluster".into(), self.cluster_name.clone()),
             (
                 "notifications".into(),
-                serde_json::to_string(&notifications)?.into(),
+                serde_json::to_string(notifications)?.into(),
             ),
         ])
     }
@@ -170,7 +175,7 @@ impl PerformConfRequest for NotifyRequest {}
 #[builder(doc, field_defaults(setter(into)))]
 pub struct Watch {
     app_id: Cow<'static, str>,
-    namespaces: Vec<Cow<'static, str>>,
+    namespace_names: Vec<Cow<'static, str>>,
     #[builder(default_code = "DEFAULT_CLUSTER_NAME.into()")]
     cluster_name: Cow<'static, str>,
     #[builder(default, setter(strip_option))]
@@ -181,7 +186,7 @@ pub struct Watch {
 
 impl Watch {
     pub(crate) fn create_notifications(&self) -> Vec<Notification> {
-        self.namespaces
+        self.namespace_names
             .iter()
             .map(|namespace| {
                 Notification::builder()

@@ -1,4 +1,4 @@
-use futures_util::{pin_mut, stream::StreamExt};
+mod common;
 
 use apollo_client::{
     conf::{
@@ -9,11 +9,12 @@ use apollo_client::{
     },
     errors::{ApolloClientError, ApolloResponseError},
 };
-use common::setup;
+use common::{ensure_timeout, setup};
+use futures_util::{pin_mut, stream::StreamExt};
 use ini::Properties;
-use std::collections::HashMap;
-
-mod common;
+use std::{collections::HashMap, time::Duration};
+use apollo_client::open::{OpenApiClient, OpenApiClientBuilder};
+use apollo_client::open::requests::OpenCreateItemRequest;
 
 #[tokio::test]
 async fn test_cached_fetch_request() {
@@ -115,7 +116,13 @@ async fn test_fetch_request() {
 
     {
         let response = client
-            .execute(FetchRequest::new("SampleApp", "application.properties").ip(IpValue::HostName))
+            .execute(
+                FetchRequest::builder()
+                    .app_id("SampleApp")
+                    .namespace_name("application.properties")
+                    .ip(IpValue::HostName)
+                    .build(),
+            )
             .await
             .unwrap();
         assert_eq!(response.app_id, "SampleApp");
@@ -126,7 +133,13 @@ async fn test_fetch_request() {
 
     {
         let response = client
-            .execute(FetchRequest::new("SampleApp", "application.json").ip(IpValue::HostName))
+            .execute(
+                FetchRequest::builder()
+                    .app_id("SampleApp")
+                    .namespace_name("application.json")
+                    .ip(IpValue::HostName)
+                    .build(),
+            )
             .await
             .unwrap();
         assert_eq!(response.app_id, "SampleApp");
@@ -137,7 +150,13 @@ async fn test_fetch_request() {
 
     {
         let result = client
-            .execute(FetchRequest::new("NotExistsApp", "application.json").ip(IpValue::HostName))
+            .execute(
+                FetchRequest::builder()
+                    .app_id("NotExistsApp")
+                    .namespace_name("application.json")
+                    .ip(IpValue::HostName)
+                    .build(),
+            )
             .await;
         assert!(matches!(
             result,
@@ -149,7 +168,13 @@ async fn test_fetch_request() {
 
     {
         let result = client
-            .execute(FetchRequest::new("SampleApp", "notExistsNamesapce").ip(IpValue::HostName))
+            .execute(
+                FetchRequest::builder()
+                    .app_id("SampleApp")
+                    .namespace_name("notExistsNamesapce")
+                    .ip(IpValue::HostName)
+                    .build(),
+            )
             .await;
         assert!(matches!(
             result,
@@ -161,56 +186,145 @@ async fn test_fetch_request() {
 }
 
 #[tokio::test]
-// #[cfg(feature = "open")]
-async fn test_watch() {
+async fn test_watch_first() {
     setup();
+    ensure_timeout(Duration::from_secs(10));
 
     {
         let client = new_client_via_config_service();
-        let stream =
-            client.watch(Watch::new("TestApp1", ["foo1", "foo2.properties"]).ip(IpValue::HostName));
+        let stream = client.watch(
+            Watch::builder()
+                .app_id("TestApp1")
+                .namespace_names(["foo1".into(), "foo2.properties".into()])
+                .ip(IpValue::HostName)
+                .build(),
+        );
         pin_mut!(stream);
 
-        let responses = stream
-            .next()
-            .await
-            .unwrap()
-            .unwrap()
-            .into_iter()
-            .map(|response| {
-                let response = response.unwrap();
-                (response.namespace_name.clone(), response)
-            })
-            .collect::<HashMap<_, _>>();
+        let responses = stream.next().await.unwrap().unwrap();
 
-        assert_eq!(responses["foo1"].app_id, "TestApp1");
-        assert_eq!(responses["foo1"].configurations["foo1"], "bar1");
-        assert_eq!(responses["foo2"].app_id, "TestApp1");
-        assert_eq!(responses["foo2"].configurations["foo2"], "bar2");
+        let foo1_response = responses["foo1"].as_ref().unwrap();
+        assert_eq!(foo1_response.app_id, "TestApp1");
+        assert_eq!(foo1_response.namespace_name, "foo1");
+        assert_eq!(foo1_response.configurations["foo1"], "bar1");
+        assert_eq!(foo1_response.configurations["foo1"], "bar1");
+
+        let foo2_response = responses["foo2.properties"].as_ref().unwrap();
+        assert_eq!(foo2_response.app_id, "TestApp1");
+        assert_eq!(foo2_response.namespace_name, "foo2.properties");
+        assert_eq!(foo2_response.configurations["foo2"], "bar2");
     }
 
     {
         let client = new_client_via_config_service();
-        let stream = client
-            .watch(Watch::new("NotExistsApp", ["foo1", "foo2.properties"]).ip(IpValue::HostName));
+        let stream = client.watch(
+            Watch::builder()
+                .app_id("NotExistsApp")
+                .namespace_names(["foo1".into(), "foo2.properties".into()])
+                .ip(IpValue::HostName)
+                .build(),
+        );
         pin_mut!(stream);
 
-        let responses = stream
-            .next()
-            .await
-            .unwrap()
-            .unwrap()
-            .into_iter()
-            .map(|response| {
-                let response = response.unwrap();
-                (response.namespace_name.clone(), response)
-            })
-            .collect::<HashMap<_, _>>();
+        let responses = stream.next().await.unwrap().unwrap();
 
-        assert_eq!(responses["foo1"].app_id, "TestApp1");
-        assert_eq!(responses["foo1"].configurations["foo1"], "bar1");
-        assert_eq!(responses["foo2"].app_id, "TestApp1");
-        assert_eq!(responses["foo2"].configurations["foo2"], "bar2");
+        assert!(matches!(
+            responses["foo1"].as_ref(),
+            Err(ApolloClientError::ApolloResponse(
+                ApolloResponseError::NotFound
+            ))
+        ));
+        assert!(matches!(
+            responses["foo2.properties"].as_ref(),
+            Err(ApolloClientError::ApolloResponse(
+                ApolloResponseError::NotFound
+            ))
+        ));
+    }
+
+    {
+        let client = new_client_via_config_service();
+        let stream = client.watch(
+            Watch::builder()
+                .app_id("TestApp1")
+                .namespace_names(["foo1".into(), "not_exists_namespace".into()])
+                .ip(IpValue::HostName)
+                .build(),
+        );
+        pin_mut!(stream);
+
+        let responses = stream.next().await.unwrap().unwrap();
+
+        assert_eq!(responses["foo1"].as_ref().unwrap().app_id, "TestApp1");
+        assert_eq!(
+            responses["foo1"].as_ref().unwrap().configurations["foo1"],
+            "bar1"
+        );
+        assert!(matches!(
+            responses["not_exists_namespace"].as_ref(),
+            Err(ApolloClientError::ApolloResponse(
+                ApolloResponseError::NotFound
+            ))
+        ));
+    }
+}
+
+#[tokio::test]
+#[cfg(feature = "open")]
+async fn test_watch_changed() {
+    use apollo_client::open::{meta::{OpenCreatedItem, OpenRelease}, requests::OpenPublishNamespaceRequest};
+    use tokio::time::sleep;
+
+    setup();
+    ensure_timeout(Duration::from_secs(10));
+
+    tokio::spawn(async move {
+        sleep(Duration::from_secs(3)).await;
+
+        let client = common::create_open_client();
+
+        client.execute(OpenCreateItemRequest::builder().env("DEV").app_id("TestApp2").namespace_name("watcher").item(
+            OpenCreatedItem::builder().key("a").value("1").comment("a comment").data_change_created_by("apollo").build(),
+        ).build()).await.unwrap();
+
+        client.execute(OpenPublishNamespaceRequest::builder().env("DEV").app_id("TestApp2").namespace_name("watcher").release(
+            OpenRelease::builder().release_title("release a").release_comment("release a comment").released_by("apollo").build()
+        ).build()).await.unwrap();
+    });
+
+    {
+        let client = new_client_via_config_service();
+        let stream = client.watch(
+            Watch::builder()
+                .app_id("TestApp2")
+                .namespace_names(["watcher".into(), "watcher2.json".into()])
+                .ip(IpValue::HostName)
+                .build(),
+        );
+        pin_mut!(stream);
+
+        let mut index = 0usize;
+        while let Some(responses) = stream.next().await {
+            let responses = responses.unwrap();
+            match index {
+                0 => {
+                    let watcher_response = responses["watcher"].as_ref().unwrap();
+                    assert_eq!(watcher_response.app_id, "TestApp2");
+                    assert_eq!(watcher_response.cluster, "default");
+                    assert_eq!(watcher_response.namespace_name, "watcher");
+                    assert_eq!(watcher_response.configurations.len(), 0);
+
+                    let watcher2_response = responses["watcher2.json"].as_ref().unwrap();
+                    assert_eq!(watcher2_response.app_id, "TestApp2");
+                    assert_eq!(watcher2_response.cluster, "default");
+                    assert_eq!(watcher2_response.namespace_name, "watcher2.json");
+                    assert_eq!(watcher2_response.configurations.len(), 0);
+                }
+                1 => {}
+                _ => break,
+            }
+            index += 1;
+        }
     }
 }
 

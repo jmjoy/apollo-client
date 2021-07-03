@@ -1,24 +1,25 @@
-mod common;
+use std::collections::HashMap;
 
 use apollo_client::{
     errors::{ApolloClientError, ApolloResponseError},
     open::{
-        meta::{Namespace, OpenCreatedItem, Release},
-        requests::{
+        meta::{OpenCreatedItem, OpenRelease},
+        OpenApiClient,
+        OpenApiClientBuilder, requests::{
             OpenAppRequest, OpenClusterRequest, OpenCreateItemRequest, OpenEnvClusterRequest,
             OpenNamespaceRequest, OpenPublishNamespaceRequest,
         },
-        OpenApiClient, OpenApiClientBuilder,
     },
 };
 use common::setup;
-use std::collections::HashMap;
+
+mod common;
 
 #[tokio::test]
 async fn test_env_cluster_request() {
     setup();
 
-    let client = create_open_client();
+    let client = common::create_open_client();
 
     {
         let response = client
@@ -36,7 +37,7 @@ async fn test_env_cluster_request() {
 async fn test_app_request() {
     setup();
 
-    let client = create_open_client();
+    let client = common::create_open_client();
 
     {
         let responses = client
@@ -93,11 +94,16 @@ async fn test_app_request() {
 async fn test_cluster_request() {
     setup();
 
-    let client = create_open_client();
+    let client = common::create_open_client();
 
     {
         let response = client
-            .execute(OpenClusterRequest::new("DEV", "SampleApp"))
+            .execute(
+                OpenClusterRequest::builder()
+                    .env("DEV")
+                    .app_id("SampleApp")
+                    .build(),
+            )
             .await
             .unwrap();
         assert_eq!(response.name, "default");
@@ -109,11 +115,16 @@ async fn test_cluster_request() {
 async fn test_namespace_request() {
     setup();
 
-    let client = create_open_client();
+    let client = common::create_open_client();
 
     {
         let response = client
-            .execute(OpenNamespaceRequest::new("DEV", "SampleApp"))
+            .execute(
+                OpenNamespaceRequest::builder()
+                    .env("DEV")
+                    .app_id("SampleApp")
+                    .build(),
+            )
             .await
             .unwrap();
     }
@@ -123,14 +134,24 @@ async fn test_namespace_request() {
 async fn test_curd_item_request() {
     setup();
 
-    let client = create_open_client();
+    let client = common::create_open_client();
 
     {
         let response = client
-            .execute(OpenCreateItemRequest::new(
-                Namespace::new("DEV", "TestApp2", "application"),
-                OpenCreatedItem::new("timeout", "3000", "apollo"),
-            ))
+            .execute(
+                OpenCreateItemRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("application")
+                    .item(
+                        OpenCreatedItem::builder()
+                            .key("timeout")
+                            .value("3000")
+                            .data_change_created_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
             .await
             .unwrap();
 
@@ -142,10 +163,21 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(OpenCreateItemRequest::new(
-                Namespace::new("DEV", "TestApp2", "application"),
-                OpenCreatedItem::new("connect_timeout", "100", "apollo").comment("connect timeout"),
-            ))
+            .execute(
+                OpenCreateItemRequest::builder()
+                    .env("DEV")
+                    .app_id("apollo")
+                    .namespace_name("application")
+                    .item(
+                        OpenCreatedItem::builder()
+                            .key("connect_timeout")
+                            .value("100")
+                            .data_change_created_by("apollo")
+                            .comment("connect timeout")
+                            .build(),
+                    )
+                    .build(),
+            )
             .await
             .unwrap();
 
@@ -157,10 +189,20 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(OpenCreateItemRequest::new(
-                Namespace::new("DEV", "TestApp2", "application"),
-                OpenCreatedItem::new("some_key", "some_value", "not_exists_user"),
-            ))
+            .execute(
+                OpenCreateItemRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("application")
+                    .item(
+                        OpenCreatedItem::builder()
+                            .key("some_key")
+                            .value("some_value")
+                            .data_change_created_by("not_exists_user")
+                            .build(),
+                    )
+                    .build(),
+            )
             .await;
 
         assert!(matches!(
@@ -173,10 +215,19 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(OpenPublishNamespaceRequest::new(
-                Namespace::new("DEV", "TestApp2", "application"),
-                Release::new("test-release", "apollo"),
-            ))
+            .execute(
+                OpenPublishNamespaceRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("application")
+                    .release(
+                        OpenRelease::builder()
+                            .release_title("test-release")
+                            .released_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
             .await
             .unwrap();
 
@@ -185,14 +236,4 @@ async fn test_curd_item_request() {
         assert_eq!(response.namespace_name, "application");
         assert_eq!(response.data_change_created_by, "apollo");
     }
-}
-
-fn create_open_client() -> OpenApiClient {
-    OpenApiClientBuilder::new(
-        "http://127.0.0.1:8070/".parse().unwrap(),
-        "391cc4053f8cce2e452a0e6db8925bbba503f434",
-    )
-    .unwrap()
-    .build()
-    .unwrap()
 }

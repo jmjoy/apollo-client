@@ -24,7 +24,7 @@ host-ip = ["systemstat", "cidr-utils"]
 host-name = ["hostname"]
 host-extend = ["host-ip", "host-name"]
 open = ["chrono/serde"]
-full = ["host-extend", "open"]
+full = ["open"]
 
 [dependencies]
 async-stream = { version = "0.3.2", optional = true }
@@ -54,6 +54,7 @@ futures = { version = "0.3.15", features = ["alloc"] }
 
 [[test]]
 name = "conf"
+required-features = ["conf"]
 
 [[test]]
 name = "open"

@@ -6,23 +6,33 @@ use std::{
 };
 use typed_builder::TypedBuilder;
 
+pub(crate) const UNINITIALIZED_NOTIFICATION_ID: i32 = -1;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct Notification {
     namespace_name: Cow<'static, str>,
-    #[builder(default = -1)]
+    #[builder(default_code = "UNINITIALIZED_NOTIFICATION_ID")]
     notification_id: i32,
 }
 
 impl Notification {
-    pub(crate) fn canonicalize(mut self) -> Self {
-        self.namespace_name = (&self.namespace_name
-            [..self.namespace_name.len() - ".properties".len()])
-            .to_string()
-            .into();
-        self
+    #[inline]
+    pub(crate) fn is_uninitialized(&self) -> bool {
+        self.notification_id == UNINITIALIZED_NOTIFICATION_ID
     }
+
+    // pub(crate) fn canonicalize(mut self) -> Self {
+    //     self.namespace_name = if self.namespace_name.ends_with(".properties") {
+    //         (&self.namespace_name[..self.namespace_name.len() - ".properties".len()])
+    //             .to_string()
+    //             .into()
+    //     } else {
+    //         self.namespace_name.into()
+    //     };
+    //     self
+    // }
 
     pub(crate) fn update_notifications(older: &mut [Self], newer: &[Self]) {
         for newer_item in newer {

@@ -20,11 +20,11 @@ use crate::{
         handle_url, validate_response, PerformResponse, DEFAULT_NOTIFY_TIMEOUT, DEFAULT_TIMEOUT,
     },
 };
-use async_stream::try_stream;
+use async_stream::stream;
 use futures_core::Stream;
 use futures_util::{stream, StreamExt};
 use reqwest::{Client, ClientBuilder};
-use std::time::Duration;
+use std::{borrow::Cow, collections::HashMap, time::Duration};
 use url::Url;
 
 enum ServerUrl {
@@ -83,43 +83,51 @@ impl ApolloConfClient {
         <R>::from_response(response).await
     }
 
+    /// Watch the multi namespaces change, and fetch all namespaces configuration when changed,
+    ///
+    /// Return the Stream implemented [futures::strem::Stream], and the return value of `poll_next` will never be None.
+    ///
     pub fn watch(
         self,
         request: Watch,
-    ) -> impl Stream<Item = ApolloClientResult<Vec<ApolloClientResult<FetchResponse>>>> {
-        let mut global_notifications = request.create_notifications();
+    ) -> impl Stream<Item = ApolloClientResult<HashMap<String, ApolloClientResult<FetchResponse>>>>
+    {
+        let mut watch_notifications = request.create_notifications();
+        let mut fetch_notifications = watch_notifications.clone();
+        assert_ne!(
+            watch_notifications.len(),
+            0,
+            "watch namespaces should not be null"
+        );
 
-        try_stream! {
-            // Call the notification api first with short timeout because apollo will hang up 60s
-            // and return 304 when the namespace is never be notified before.
-            match self
-                .execute(
-                    NotifyRequest::from_watch(&request, global_notifications.clone(), Duration::from_secs(1))
-                )
-                .await
-            {
-                Ok(_) => {},
-                Err(ApolloClientError::Reqwest(e)) if e.is_timeout() => {},
-                Err(e) => Err(e)?,
-            }
-
+        stream! {
             loop {
-                let notifications = match self
-                    .execute(NotifyRequest::from_watch(
-                        &request,
-                        global_notifications.clone(),
-                        DEFAULT_NOTIFY_TIMEOUT,
-                    ))
-                    .await
-                {
-                    Ok(notifications) => notifications,
-                    Err(ApolloResponse(NotModified)) => continue,
-                    Err(e) => Err(e)?,
-                };
+                let requests = Notification::create_fetch_requests(fetch_notifications, &request);
+                yield Ok(self.fetch_multi(requests).await);
 
-                Notification::update_notifications(&mut global_notifications, &notifications);
-                let requests = Notification::create_fetch_requests(notifications, &request);
-                yield self.fetch_multi(requests).await;
+                fetch_notifications = loop {
+                    match self
+                        .execute(NotifyRequest::from_watch(
+                            &request,
+                            watch_notifications.clone(),
+                            DEFAULT_NOTIFY_TIMEOUT,
+                        ))
+                        .await
+                    {
+                        Ok(notifications) => {
+                            let is_uninitialized = watch_notifications[0].is_uninitialized();
+                            Notification::update_notifications(&mut watch_notifications, &notifications);
+                            if is_uninitialized {
+                                // Avoid to fetch request again.
+                                continue;
+                            } else {
+                                break notifications;
+                            }
+                        },
+                        Err(ApolloResponse(NotModified)) => continue,
+                        Err(e) => yield Err(e),
+                    };
+                };
             }
         }
     }
@@ -127,20 +135,22 @@ impl ApolloConfClient {
     async fn fetch_multi(
         &self,
         requests: Vec<FetchRequest>,
-    ) -> Vec<ApolloClientResult<FetchResponse>> {
-        let futs = requests
-            .into_iter()
-            .map(|fetch_request| self.execute(fetch_request))
-            .collect::<Vec<_>>();
+    ) -> HashMap<String, ApolloClientResult<FetchResponse>> {
+        let executors = requests.into_iter().map(|fetch_request| async move {
+            (
+                fetch_request.namespace_name(),
+                self.execute(fetch_request).await,
+            )
+        });
 
-        let futs_len = futs.len();
-        let futs_stream = stream::iter(futs);
-        let mut buffered = futs_stream.buffer_unordered(futs_len);
+        let executors_len = executors.len();
+        let executors_stream = stream::iter(executors);
+        let mut buffered = executors_stream.buffer_unordered(executors_len);
 
-        let mut rs = Vec::with_capacity(futs_len);
+        let mut map = HashMap::with_capacity(executors_len);
         while let Some(item) = buffered.next().await {
-            rs.push(item);
+            map.insert(item.0, item.1);
         }
-        rs
+        map
     }
 }

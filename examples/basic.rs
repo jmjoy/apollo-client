@@ -17,7 +17,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Request apollo cached configuration api.
     let configuration: Properties = client
-        .execute(CachedFetchRequest::new("SampleApp", "application.json").ip(IpValue::HostName))
+        .execute(
+            CachedFetchRequest::builder()
+                .app_id("SampleApp")
+                .namespace_name("application.json")
+                .ip(IpValue::HostName)
+                .build(),
+        )
         .await?;
 
     // Get the content of configuration.
