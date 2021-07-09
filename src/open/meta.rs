@@ -1,4 +1,3 @@
-use crate::meta::DEFAULT_CLUSTER_NAME;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use typed_builder::TypedBuilder;
@@ -25,6 +24,12 @@ pub struct OpenUpdateItem {
     #[builder(default, setter(strip_option))]
     data_change_created_by: Option<Cow<'static, str>>,
     data_change_last_modified_by: Cow<'static, str>,
+}
+
+impl OpenUpdateItem {
+    pub(crate) fn key(&self) -> &str {
+        &self.key
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TypedBuilder)]

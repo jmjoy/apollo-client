@@ -1,4 +1,4 @@
-use apollo_client::conf::{meta::IpValue, requests::Watch, ApolloConfClientBuilder};
+use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClientBuilder};
 use cidr_utils::cidr::IpCidr;
 use futures_util::{pin_mut, stream::StreamExt};
 use std::error::Error;
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Request apollo notification api, and fetch configuration when notified.
     let stream = client.watch(
-        Watch::builder()
+        WatchRequest::builder()
             .app_id("SampleApp")
             .namespace_names([
                 "application.properties".into(),

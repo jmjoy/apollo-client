@@ -1,4 +1,6 @@
-use crate::conf::requests::{FetchRequest, Watch};
+//! Configuration api metadata.
+
+use crate::conf::requests::{FetchRequest, WatchRequest};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -8,6 +10,7 @@ use typed_builder::TypedBuilder;
 
 pub(crate) const UNINITIALIZED_NOTIFICATION_ID: i32 = -1;
 
+/// Notification for request and response, default notification_id is `-1`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
 #[builder(doc, field_defaults(setter(into)))]
@@ -46,7 +49,7 @@ impl Notification {
 
     pub(crate) fn create_fetch_requests(
         notifications: impl IntoIterator<Item = Self>,
-        watch: &Watch,
+        watch: &WatchRequest,
     ) -> Vec<FetchRequest> {
         notifications
             .into_iter()

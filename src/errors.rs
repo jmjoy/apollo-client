@@ -1,6 +1,7 @@
 //! Crate level errors.
 
 use http::StatusCode;
+use reqwest::Response;
 use std::str::Utf8Error;
 
 pub type ApolloClientResult<T> = Result<T, ApolloClientError>;
@@ -35,37 +36,21 @@ pub enum ApolloClientError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ApolloResponseError {
-    #[error("not modified")]
-    NotModified,
-    #[error("bad request")]
-    BadRequest,
-    #[error("unauthorized")]
-    Unauthorized,
-    #[error("forbidden")]
-    Forbidden,
-    #[error("not found")]
-    NotFound,
-    #[error("method not allowed")]
-    MethodNotAllowed,
-    #[error("internal server error")]
-    InternalServerError,
-    #[error("unknown error, status code: {0}")]
-    Unknown(StatusCode),
+#[error(r#"apollo response error, status: {status}, body: "{body}""#)]
+pub struct ApolloResponseError {
+    pub status: StatusCode,
+    pub body: String,
 }
 
 impl ApolloResponseError {
-    pub(crate) fn from_status_code(status: StatusCode) -> Option<Self> {
-        match status {
-            StatusCode::OK => None,
-            StatusCode::NOT_MODIFIED => Some(Self::NotModified),
-            StatusCode::BAD_REQUEST => Some(Self::BadRequest),
-            StatusCode::UNAUTHORIZED => Some(Self::Unauthorized),
-            StatusCode::FORBIDDEN => Some(Self::Forbidden),
-            StatusCode::NOT_FOUND => Some(Self::NotFound),
-            StatusCode::METHOD_NOT_ALLOWED => Some(Self::MethodNotAllowed),
-            StatusCode::INTERNAL_SERVER_ERROR => Some(Self::InternalServerError),
-            s => Some(Self::Unknown(s)),
+    pub(crate) async fn from_response(response: Response) -> Result<Response, Self> {
+        if response.status().is_success() {
+            Ok(response)
+        } else {
+            Err(Self {
+                status: response.status(),
+                body: response.text().await.unwrap_or_default(),
+            })
         }
     }
 }

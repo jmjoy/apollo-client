@@ -9,13 +9,10 @@ pub mod responses;
 use crate::{
     conf::{
         meta::Notification,
-        requests::{FetchRequest, NotifyRequest, PerformConfRequest, Watch},
+        requests::{FetchRequest, NotifyRequest, PerformConfRequest, WatchRequest},
         responses::FetchResponse,
     },
-    errors::{
-        ApolloClientError, ApolloClientError::ApolloResponse, ApolloClientResult,
-        ApolloResponseError::NotModified,
-    },
+    errors::{ApolloClientError::ApolloResponse, ApolloClientResult},
     meta::{
         handle_url, validate_response, PerformResponse, DEFAULT_NOTIFY_TIMEOUT, DEFAULT_TIMEOUT,
     },
@@ -23,8 +20,9 @@ use crate::{
 use async_stream::stream;
 use futures_core::Stream;
 use futures_util::{stream, StreamExt};
+use http::status::StatusCode;
 use reqwest::{Client, ClientBuilder};
-use std::{borrow::Cow, collections::HashMap, time::Duration};
+use std::collections::HashMap;
 use url::Url;
 
 enum ServerUrl {
@@ -79,17 +77,17 @@ impl ApolloConfClient {
         let mut request_builder = self.client.request(request.method(), url);
         request_builder = request.request_builder(request_builder);
         let response = request_builder.send().await?;
-        validate_response(&response)?;
+        let response = validate_response(response).await?;
         <R>::from_response(response).await
     }
 
     /// Watch the multi namespaces change, and fetch all namespaces configuration when changed,
     ///
-    /// Return the Stream implemented [futures::strem::Stream], and the return value of `poll_next` will never be None.
+    /// Return the Stream implemented [futures_core::Stream], and the return value of `poll_next` will never be None.
     ///
     pub fn watch(
         self,
-        request: Watch,
+        request: WatchRequest,
     ) -> impl Stream<Item = ApolloClientResult<HashMap<String, ApolloClientResult<FetchResponse>>>>
     {
         let mut watch_notifications = request.create_notifications();
@@ -105,7 +103,7 @@ impl ApolloConfClient {
                 let requests = Notification::create_fetch_requests(fetch_notifications, &request);
                 yield Ok(self.fetch_multi(requests).await);
 
-                fetch_notifications = loop {
+                loop {
                     match self
                         .execute(NotifyRequest::from_watch(
                             &request,
@@ -116,18 +114,19 @@ impl ApolloConfClient {
                     {
                         Ok(notifications) => {
                             let is_uninitialized = watch_notifications[0].is_uninitialized();
-                            Notification::update_notifications(&mut watch_notifications, &notifications);
-                            if is_uninitialized {
-                                // Avoid to fetch request again.
-                                continue;
-                            } else {
-                                break notifications;
+                            Notification::update_notifications(
+                                &mut watch_notifications,
+                                &notifications,
+                            );
+                            fetch_notifications = notifications;
+                            if !is_uninitialized {
+                                break;
                             }
                         },
-                        Err(ApolloResponse(NotModified)) => continue,
+                        Err(ApolloResponse(e)) if e.status == StatusCode::NOT_MODIFIED => {},
                         Err(e) => yield Err(e),
-                    };
-                };
+                    }
+                }
             }
         }
     }

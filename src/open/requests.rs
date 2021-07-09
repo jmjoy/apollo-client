@@ -11,7 +11,6 @@ use crate::{
 };
 use http::Method;
 use reqwest::RequestBuilder;
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use typed_builder::TypedBuilder;
 
@@ -154,10 +153,44 @@ pub struct OpenUpdateItemRequest {
     namespace_name: Cow<'static, str>,
     #[builder(default_code = "DEFAULT_CLUSTER_NAME.into()")]
     cluster_name: Cow<'static, str>,
+    #[builder(default)]
+    create_if_not_exists: bool,
     item: OpenUpdateItem,
 }
 
-// TODO impl OpenUpdateItemRequest
+impl PerformRequest for OpenUpdateItemRequest {
+    type Response = ();
+
+    fn path(&self) -> String {
+        format!(
+            "{}/envs/{}/apps/{}/clusters/{}/namespaces/{}/items/{}",
+            OPEN_API_PREFIX,
+            self.env,
+            self.app_id,
+            self.cluster_name,
+            self.namespace_name,
+            self.item.key()
+        )
+    }
+
+    fn method(&self) -> Method {
+        Method::PUT
+    }
+
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
+        let mut queries = vec![];
+        if self.create_if_not_exists {
+            queries.push(("createIfNotExists".into(), "true".into()));
+        }
+        Ok(queries)
+    }
+
+    fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
+        request_builder.json(&self.item)
+    }
+}
+
+impl PerformOpenRequest for OpenUpdateItemRequest {}
 
 #[derive(Debug, Clone, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]

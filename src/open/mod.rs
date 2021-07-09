@@ -71,7 +71,7 @@ impl OpenApiClient {
         let mut request_builder = self.client.request(request.method(), url);
         request_builder = request.request_builder(request_builder);
         let response = request_builder.send().await?;
-        validate_response(&response)?;
+        let response = validate_response(response).await?;
         <R>::from_response(response).await
     }
 }

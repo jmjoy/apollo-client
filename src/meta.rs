@@ -1,3 +1,5 @@
+//! Common api metadata.
+
 use crate::errors::{
     ApolloClientError, ApolloClientError::UrlCannotBeABase, ApolloClientResult, ApolloResponseError,
 };
@@ -54,29 +56,45 @@ impl Display for NamespaceKind {
     }
 }
 
+/// Common api request trait.
 pub trait PerformRequest {
+    /// The returned response after request is success.
     type Response: PerformResponse;
 
+    /// Url path.
     fn path(&self) -> String;
 
+    /// Request method.
     fn method(&self) -> http::Method {
         Method::GET
     }
 
+    /// Url queries.
     fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
         Ok(vec![])
     }
 
+    /// Handle extras operator, such as set request body.
     fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
         request_builder
     }
 }
 
+/// Common api response trait.
 #[async_trait]
 pub trait PerformResponse: Sized {
+    /// Create Self from response.
     async fn from_response(response: Response) -> ApolloClientResult<Self>;
 }
 
+#[async_trait]
+impl PerformResponse for () {
+    async fn from_response(_response: Response) -> ApolloClientResult<Self> {
+        Ok(())
+    }
+}
+
+#[cfg(feature = "conf")]
 #[async_trait]
 impl PerformResponse for Properties {
     async fn from_response(response: Response) -> ApolloClientResult<Self> {
@@ -88,6 +106,7 @@ impl PerformResponse for Properties {
     }
 }
 
+/// Create request url from base url, mainly path and queries.
 pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> ApolloClientResult<Url> {
     let mut url = base_url;
     let path = &request.path();
@@ -103,13 +122,14 @@ pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> Apollo
     Ok(url)
 }
 
-pub(crate) fn validate_response(response: &Response) -> ApolloClientResult<()> {
-    match ApolloResponseError::from_status_code(response.status()) {
-        Some(e) => Err(e.into()),
-        None => Ok(()),
-    }
+/// Validate response is successful or not.
+pub(crate) async fn validate_response(response: Response) -> ApolloClientResult<Response> {
+    ApolloResponseError::from_response(response)
+        .await
+        .map_err(Into::into)
 }
 
+/// Implement PerformResponse for response struct which content type is `application/json`.
 macro_rules! implement_json_perform_response_for {
     ($t:ty) => {
         #[async_trait::async_trait]

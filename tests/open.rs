@@ -1,17 +1,16 @@
-use std::collections::HashMap;
-
 use apollo_client::{
-    errors::{ApolloClientError, ApolloResponseError},
+    errors::{ApolloClientError},
     open::{
         meta::{OpenCreatedItem, OpenRelease},
-        OpenApiClient,
-        OpenApiClientBuilder, requests::{
+        requests::{
             OpenAppRequest, OpenClusterRequest, OpenCreateItemRequest, OpenEnvClusterRequest,
             OpenNamespaceRequest, OpenPublishNamespaceRequest,
         },
     },
 };
 use common::setup;
+use http::StatusCode;
+use std::collections::HashMap;
 
 mod common;
 
@@ -118,7 +117,7 @@ async fn test_namespace_request() {
     let client = common::create_open_client();
 
     {
-        let response = client
+        let _response = client
             .execute(
                 OpenNamespaceRequest::builder()
                     .env("DEV")
@@ -207,9 +206,7 @@ async fn test_curd_item_request() {
 
         assert!(matches!(
             response,
-            Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::BadRequest
-            ))
+            Err(ApolloClientError::ApolloResponse(e))  if e.status == StatusCode::BAD_REQUEST
         ));
     }
 

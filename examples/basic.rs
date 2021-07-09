@@ -1,6 +1,5 @@
 use apollo_client::{
     conf::{meta::IpValue, requests::CachedFetchRequest, ApolloConfClientBuilder},
-    errors::ApolloClientResult,
 };
 use ini::Properties;
 use std::error::Error;

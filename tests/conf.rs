@@ -2,19 +2,17 @@ mod common;
 
 use apollo_client::{
     conf::{
-        meta::{IpValue, Notification},
-        requests::{CachedFetchRequest, FetchRequest, NotifyRequest, Watch},
-        responses::FetchResponse,
+        meta::{IpValue},
+        requests::{CachedFetchRequest, FetchRequest, WatchRequest},
         ApolloConfClient, ApolloConfClientBuilder,
     },
-    errors::{ApolloClientError, ApolloResponseError},
+    errors::{ApolloClientError},
 };
 use common::{ensure_timeout, setup};
 use futures_util::{pin_mut, stream::StreamExt};
+use http::status::StatusCode;
 use ini::Properties;
-use std::{collections::HashMap, time::Duration};
-use apollo_client::open::{OpenApiClient, OpenApiClientBuilder};
-use apollo_client::open::requests::OpenCreateItemRequest;
+use std::{time::Duration};
 
 #[tokio::test]
 async fn test_cached_fetch_request() {
@@ -70,9 +68,7 @@ async fn test_cached_fetch_request() {
             .await;
         assert!(matches!(
             result,
-            Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::NotFound
-            ))
+            Err(ApolloClientError::ApolloResponse(e)) if e.status == StatusCode::NOT_FOUND
         ));
     }
 
@@ -89,8 +85,8 @@ async fn test_cached_fetch_request() {
         assert!(matches!(
             result,
             Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::NotFound
-            ))
+                e
+            )) if e.status == StatusCode::NOT_FOUND
         ));
     }
 
@@ -161,8 +157,8 @@ async fn test_fetch_request() {
         assert!(matches!(
             result,
             Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::NotFound
-            ))
+                e
+            )) if e.status == StatusCode::NOT_FOUND
         ));
     }
 
@@ -179,8 +175,8 @@ async fn test_fetch_request() {
         assert!(matches!(
             result,
             Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::NotFound
-            ))
+                e
+            )) if e.status == StatusCode::NOT_FOUND
         ));
     }
 }
@@ -193,7 +189,7 @@ async fn test_watch_first() {
     {
         let client = new_client_via_config_service();
         let stream = client.watch(
-            Watch::builder()
+            WatchRequest::builder()
                 .app_id("TestApp1")
                 .namespace_names(["foo1".into(), "foo2.properties".into()])
                 .ip(IpValue::HostName)
@@ -218,7 +214,7 @@ async fn test_watch_first() {
     {
         let client = new_client_via_config_service();
         let stream = client.watch(
-            Watch::builder()
+            WatchRequest::builder()
                 .app_id("NotExistsApp")
                 .namespace_names(["foo1".into(), "foo2.properties".into()])
                 .ip(IpValue::HostName)
@@ -231,21 +227,21 @@ async fn test_watch_first() {
         assert!(matches!(
             responses["foo1"].as_ref(),
             Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::NotFound
-            ))
+                e
+            )) if e.status == StatusCode::NOT_FOUND
         ));
         assert!(matches!(
             responses["foo2.properties"].as_ref(),
             Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::NotFound
-            ))
+                e
+            )) if e.status == StatusCode::NOT_FOUND
         ));
     }
 
     {
         let client = new_client_via_config_service();
         let stream = client.watch(
-            Watch::builder()
+            WatchRequest::builder()
                 .app_id("TestApp1")
                 .namespace_names(["foo1".into(), "not_exists_namespace".into()])
                 .ip(IpValue::HostName)
@@ -263,39 +259,185 @@ async fn test_watch_first() {
         assert!(matches!(
             responses["not_exists_namespace"].as_ref(),
             Err(ApolloClientError::ApolloResponse(
-                ApolloResponseError::NotFound
-            ))
+                e
+            )) if e.status == StatusCode::NOT_FOUND
         ));
     }
 }
 
-#[tokio::test]
 #[cfg(feature = "open")]
+#[tokio::test]
 async fn test_watch_changed() {
-    use apollo_client::open::{meta::{OpenCreatedItem, OpenRelease}, requests::OpenPublishNamespaceRequest};
+    use apollo_client::open::{
+        meta::{OpenRelease, OpenUpdateItem},
+        requests::{OpenPublishNamespaceRequest, OpenUpdateItemRequest},
+    };
     use tokio::time::sleep;
 
     setup();
-    ensure_timeout(Duration::from_secs(10));
+    ensure_timeout(Duration::from_secs(15));
 
-    tokio::spawn(async move {
-        sleep(Duration::from_secs(3)).await;
-
+    let handle = tokio::spawn(async move {
         let client = common::create_open_client();
 
-        client.execute(OpenCreateItemRequest::builder().env("DEV").app_id("TestApp2").namespace_name("watcher").item(
-            OpenCreatedItem::builder().key("a").value("1").comment("a comment").data_change_created_by("apollo").build(),
-        ).build()).await.unwrap();
+        // Update and Publish TestApp2.watcher.
+        sleep(Duration::from_secs(3)).await;
 
-        client.execute(OpenPublishNamespaceRequest::builder().env("DEV").app_id("TestApp2").namespace_name("watcher").release(
-            OpenRelease::builder().release_title("release a").release_comment("release a comment").released_by("apollo").build()
-        ).build()).await.unwrap();
+        client
+            .execute(
+                OpenUpdateItemRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher")
+                    .item(
+                        OpenUpdateItem::builder()
+                            .key("a")
+                            .value("2")
+                            .comment("a comment")
+                            .data_change_last_modified_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        client
+            .execute(
+                OpenPublishNamespaceRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher")
+                    .release(
+                        OpenRelease::builder()
+                            .release_title("release a")
+                            .release_comment("release a comment")
+                            .released_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        // Update and Publish TestApp2.watcher2.
+        sleep(Duration::from_secs(3)).await;
+
+        client
+            .execute(
+                OpenUpdateItemRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher2.json")
+                    .item(
+                        OpenUpdateItem::builder()
+                            .key("content")
+                            .value(r#"{"timeout":"2000"}"#)
+                            .comment("timeout comment")
+                            .data_change_last_modified_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        client
+            .execute(
+                OpenPublishNamespaceRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher2.json")
+                    .release(
+                        OpenRelease::builder()
+                            .release_title("release timeout")
+                            .release_comment("release timeout comment")
+                            .released_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        sleep(Duration::from_secs(3)).await;
+
+        // Restore
+        client
+            .execute(
+                OpenUpdateItemRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher")
+                    .item(
+                        OpenUpdateItem::builder()
+                            .key("a")
+                            .value("1")
+                            .data_change_last_modified_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        client
+            .execute(
+                OpenUpdateItemRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher2.json")
+                    .item(
+                        OpenUpdateItem::builder()
+                            .key("content")
+                            .value(r#"{"timeout":"1500"}"#)
+                            .data_change_last_modified_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        client
+            .execute(
+                OpenPublishNamespaceRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher")
+                    .release(
+                        OpenRelease::builder()
+                            .release_title("restore")
+                            .released_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
+
+        client
+            .execute(
+                OpenPublishNamespaceRequest::builder()
+                    .env("DEV")
+                    .app_id("TestApp2")
+                    .namespace_name("watcher2.json")
+                    .release(
+                        OpenRelease::builder()
+                            .release_title("restore")
+                            .released_by("apollo")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await
+            .unwrap();
     });
 
     {
         let client = new_client_via_config_service();
         let stream = client.watch(
-            Watch::builder()
+            WatchRequest::builder()
                 .app_id("TestApp2")
                 .namespace_names(["watcher".into(), "watcher2.json".into()])
                 .ip(IpValue::HostName)
@@ -308,24 +450,57 @@ async fn test_watch_changed() {
             let responses = responses.unwrap();
             match index {
                 0 => {
+                    assert_eq!(responses.len(), 2);
+
                     let watcher_response = responses["watcher"].as_ref().unwrap();
                     assert_eq!(watcher_response.app_id, "TestApp2");
                     assert_eq!(watcher_response.cluster, "default");
                     assert_eq!(watcher_response.namespace_name, "watcher");
-                    assert_eq!(watcher_response.configurations.len(), 0);
+                    assert_eq!(watcher_response.configurations.len(), 1);
+                    assert_eq!(watcher_response.configurations["a"], "1");
 
                     let watcher2_response = responses["watcher2.json"].as_ref().unwrap();
                     assert_eq!(watcher2_response.app_id, "TestApp2");
                     assert_eq!(watcher2_response.cluster, "default");
                     assert_eq!(watcher2_response.namespace_name, "watcher2.json");
-                    assert_eq!(watcher2_response.configurations.len(), 0);
+                    assert_eq!(watcher2_response.configurations.len(), 1);
+                    assert_eq!(
+                        watcher2_response.configurations["content"],
+                        r#"{"timeout":"1500"}"#
+                    );
                 }
-                1 => {}
-                _ => break,
+                1 => {
+                    assert_eq!(responses.len(), 1);
+
+                    let watcher_response = responses["watcher"].as_ref().unwrap();
+                    assert_eq!(watcher_response.app_id, "TestApp2");
+                    assert_eq!(watcher_response.cluster, "default");
+                    assert_eq!(watcher_response.namespace_name, "watcher");
+                    assert_eq!(watcher_response.configurations.len(), 1);
+                    assert_eq!(watcher_response.configurations["a"], "2");
+                }
+                2 => {
+                    assert_eq!(responses.len(), 1);
+
+                    let watcher2_response = responses["watcher2.json"].as_ref().unwrap();
+                    assert_eq!(watcher2_response.app_id, "TestApp2");
+                    assert_eq!(watcher2_response.cluster, "default");
+                    assert_eq!(watcher2_response.namespace_name, "watcher2.json");
+                    assert_eq!(watcher2_response.configurations.len(), 1);
+                    assert_eq!(
+                        watcher2_response.configurations["content"],
+                        r#"{"timeout":"2000"}"#
+                    );
+
+                    break;
+                }
+                _ => unreachable!(),
             }
             index += 1;
         }
     }
+
+    handle.await.unwrap();
 }
 
 fn new_client_via_config_service() -> ApolloConfClient {

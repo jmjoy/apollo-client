@@ -1,3 +1,5 @@
+//! Configuration api metadata.
+
 use crate::{
     conf::{
         meta::{IpValue, Notification},
@@ -72,7 +74,10 @@ impl FetchRequest {
         self.namespace_name.to_string()
     }
 
-    pub(crate) fn from_watch(watch: &Watch, namespace_name: impl Into<Cow<'static, str>>) -> Self {
+    pub(crate) fn from_watch(
+        watch: &WatchRequest,
+        namespace_name: impl Into<Cow<'static, str>>,
+    ) -> Self {
         Self {
             app_id: watch.app_id.clone(),
             cluster_name: watch.cluster_name.clone(),
@@ -126,7 +131,7 @@ pub struct NotifyRequest {
 
 impl NotifyRequest {
     pub(crate) fn from_watch(
-        watch: &Watch,
+        watch: &WatchRequest,
         notifications: Vec<Notification>,
         timeout: Duration,
     ) -> Self {
@@ -171,9 +176,10 @@ impl PerformRequest for NotifyRequest {
 
 impl PerformConfRequest for NotifyRequest {}
 
+/// Used in [crate::conf::ApolloConfClient::watch].
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
-pub struct Watch {
+pub struct WatchRequest {
     app_id: Cow<'static, str>,
     namespace_names: Vec<Cow<'static, str>>,
     #[builder(default_code = "DEFAULT_CLUSTER_NAME.into()")]
@@ -184,7 +190,7 @@ pub struct Watch {
     extras_queries: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
-impl Watch {
+impl WatchRequest {
     pub(crate) fn create_notifications(&self) -> Vec<Notification> {
         self.namespace_names
             .iter()
