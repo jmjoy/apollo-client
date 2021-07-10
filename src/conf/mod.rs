@@ -81,9 +81,52 @@ impl ApolloConfClient {
         <R>::from_response(response).await
     }
 
-    /// Watch the multi namespaces change, and fetch all namespaces configuration when changed,
+    /// Watch the multi namespaces change, and fetch namespaces configuration when changed.
     ///
-    /// Return the Stream implemented [futures_core::Stream], and the return value of `poll_next` will never be None.
+    /// Return the Stream implemented [futures_core::Stream], and the return value of `poll_next`
+    /// will never be None (Dead Loop).
+    ///
+    /// The first `poll_next` will fetch all namespaces, the remain will only fetch changed
+    /// namespaces.
+    ///
+    /// # Panic
+    ///
+    /// panic if request field `namespace_names` is empty.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollo_client::conf::{ApolloConfClient, meta::IpValue, requests::WatchRequest};
+    /// use cidr_utils::cidr::IpCidr;
+    /// use futures_util::{pin_mut, stream::StreamExt};
+    /// use std::error::Error;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn Error>> {
+    /// let client: ApolloConfigClient = todo!();
+    ///
+    ///     let stream = client.watch(
+    ///         WatchRequest::builder()
+    ///             .app_id("SampleApp")
+    ///             .namespace_names([
+    ///                 "application.properties".into(),
+    ///                 "application.json".into(),
+    ///                 "application.yml".into(),
+    ///             ])
+    ///             .ip(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?))
+    ///             .build(),
+    ///     );
+    ///
+    ///     pin_mut!(stream);
+    ///
+    ///     // These is a dead loop, `next()` is returned when configuration is changed.
+    ///     while let Some(response) = stream.next().await {
+    ///         let _ = response?;
+    ///     }
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     ///
     pub fn watch(
         self,

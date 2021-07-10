@@ -1,17 +1,17 @@
 //! Common api metadata.
 
-use crate::errors::{
-    ApolloClientError, ApolloClientError::UrlCannotBeABase, ApolloClientResult, ApolloResponseError,
-};
+use crate::errors::{ApolloClientResult, ApolloResponseError};
 use async_trait::async_trait;
 use http::Method;
-use ini::{Ini, Properties};
 use reqwest::{RequestBuilder, Response};
 use std::{borrow::Cow, fmt, fmt::Display, time::Duration};
 use url::Url;
 
+#[allow(dead_code)]
 pub(crate) const DEFAULT_CLUSTER_NAME: &str = "default";
+#[allow(dead_code)]
 pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+#[allow(dead_code)]
 pub(crate) const DEFAULT_NOTIFY_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// Kind of a configuration namespace.
@@ -96,24 +96,25 @@ impl PerformResponse for () {
 
 #[cfg(feature = "conf")]
 #[async_trait]
-impl PerformResponse for Properties {
+impl PerformResponse for ini::Properties {
     async fn from_response(response: Response) -> ApolloClientResult<Self> {
         let content = response.text().await?;
-        let i = Ini::load_from_str(&content)?;
+        let i = ini::Ini::load_from_str(&content)?;
         Ok(i.section(None::<&'static str>)
-            .ok_or(ApolloClientError::EmptyConfiguration)?
+            .ok_or(crate::errors::ApolloClientError::EmptyConfiguration)?
             .clone())
     }
 }
 
 /// Create request url from base url, mainly path and queries.
+#[allow(dead_code)]
 pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> ApolloClientResult<Url> {
     let mut url = base_url;
     let path = &request.path();
     let query = &request.queries()?;
 
     url.path_segments_mut()
-        .map_err(|_| UrlCannotBeABase)?
+        .map_err(|_| crate::errors::ApolloClientError::UrlCannotBeABase)?
         .extend(path.split('/'));
     if !query.is_empty() {
         url.query_pairs_mut().extend_pairs(query);
@@ -123,6 +124,7 @@ pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> Apollo
 }
 
 /// Validate response is successful or not.
+#[allow(dead_code)]
 pub(crate) async fn validate_response(response: Response) -> ApolloClientResult<Response> {
     ApolloResponseError::from_response(response)
         .await
@@ -130,6 +132,7 @@ pub(crate) async fn validate_response(response: Response) -> ApolloClientResult<
 }
 
 /// Implement PerformResponse for response struct which content type is `application/json`.
+#[allow(unused_macros)]
 macro_rules! implement_json_perform_response_for {
     ($t:ty) => {
         #[async_trait::async_trait]

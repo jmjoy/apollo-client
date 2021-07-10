@@ -127,7 +127,7 @@ Call open platform api to fetch app infos:
 
 ```rust
 use std::error::Error;
-use apollo_client::open::OpenApiClientBuilder;
+use apollo_client::open::{OpenApiClientBuilder, requests::OpenAppRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

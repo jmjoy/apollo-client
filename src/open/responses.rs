@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 macro_rules! struct_open_response_with_base_fields {
     ($name:ident, { $( ($i:ident, $t:ty) ,)* }) => {

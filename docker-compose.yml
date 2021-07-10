@@ -18,11 +18,11 @@ services:
     environment:
       TZ: Asia/Shanghai
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-    ports:
-      - "3306:3306"
     volumes:
       - ./sql:/docker-entrypoint-initdb.d
       - apollo-db-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
     networks:
       - overlay
 

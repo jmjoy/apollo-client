@@ -2,19 +2,19 @@ mod common;
 
 use apollo_client::{
     conf::{
-        meta::{IpValue},
+        meta::IpValue,
         requests::{CachedFetchRequest, FetchRequest, WatchRequest},
         ApolloConfClient, ApolloConfClientBuilder,
     },
-    errors::{ApolloClientError},
+    errors::ApolloClientError,
 };
 use common::{ensure_timeout, setup};
 use futures_util::{pin_mut, stream::StreamExt};
 use http::status::StatusCode;
 use ini::Properties;
-use std::{time::Duration};
+use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_cached_fetch_request() {
     setup();
 
@@ -104,7 +104,7 @@ async fn test_cached_fetch_request() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_fetch_request() {
     setup();
 
@@ -181,7 +181,7 @@ async fn test_fetch_request() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_watch_first() {
     setup();
     ensure_timeout(Duration::from_secs(10));
@@ -266,7 +266,7 @@ async fn test_watch_first() {
 }
 
 #[cfg(feature = "open")]
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_watch_changed() {
     use apollo_client::open::{
         meta::{OpenRelease, OpenUpdateItem},

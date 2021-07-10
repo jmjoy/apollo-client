@@ -1,12 +1,17 @@
-use std::{env, fs::File, path::PathBuf, process::{exit, Command}, sync::Once, time::Duration};
+use std::{
+    env,
+    fs::File,
+    path::PathBuf,
+    process::{exit, Command},
+    sync::Once,
+    time::Duration,
+};
 use tokio::time::sleep;
-
 
 #[cfg(feature = "open")]
 use apollo_client::open::{OpenApiClient, OpenApiClientBuilder};
-use tokio::runtime::Handle;
-use tokio::time;
 use reqwest::Client;
+use tokio::{runtime::Handle, task::block_in_place, time};
 
 static START: Once = Once::new();
 
@@ -14,44 +19,67 @@ pub fn setup() {
     START.call_once(|| {
         env_logger::init();
         // setup_mysql();
-        setup_docker();
+        // setup_docker();
     });
 }
 
+#[allow(dead_code)]
 fn setup_docker() {
     let mut down = Command::new("docker-compose");
     let output = down.arg("down").output().unwrap();
     let down_stdout = String::from_utf8(output.stdout);
     let down_stderr = String::from_utf8(output.stderr);
-    log::info!("docker-compose down, stdout: {:?}, stderr: {:?}", down_stdout, down_stderr);
+    log::info!(
+        "docker-compose down, stdout: {:?}, stderr: {:?}",
+        down_stdout,
+        down_stderr
+    );
     assert!(output.status.success());
 
     let mut up = Command::new("docker-compose");
     let output = up.arg("up").arg("-d").output().unwrap();
     let up_stdout = String::from_utf8(output.stdout);
     let up_stderr = String::from_utf8(output.stderr);
-    log::info!("docker-compose up -d, stdout: {:?}, stderr: {:?}", up_stdout, up_stderr);
+    log::info!(
+        "docker-compose up -d, stdout: {:?}, stderr: {:?}",
+        up_stdout,
+        up_stderr
+    );
     assert!(output.status.success());
 
-    let b = Handle::current().block_on(async move {
-        for _ in 0..12 {
-            time::sleep(Duration::from_secs(5)).await;
+    let b = block_in_place(|| {
+        Handle::current().block_on(async move {
+            for _ in 0..12 {
+                time::sleep(Duration::from_secs(5)).await;
 
-            let client = Client::builder().build().unwrap();
-            let response = client.get("http://localhost:8080").send().await.unwrap();
-            if !response.status().is_success() {
-                continue;
+                let client = Client::builder().build().unwrap();
+                let response = client.get("http://localhost:8080").send().await;
+                if response.is_err() {
+                    continue;
+                }
+                // match response {
+                //     Ok(response) => if !response.status().is_success() {
+                //         continue;
+                //     }
+                //     Err(_) => continue,
+                // }
+
+                let response = client.get("http://localhost:8070").send().await;
+                if response.is_err() {
+                    continue;
+                }
+                // match response {
+                //     Ok(response) => if !response.status().is_success() {
+                //         continue;
+                //     }
+                //     Err(_) => continue,
+                // }
+
+                return true;
             }
 
-            let response = client.get("http://localhost:8070").send().await.unwrap();
-            if !response.status().is_success() {
-                continue;
-            }
-
-            return true;
-        }
-
-        false
+            false
+        })
     });
 
     if !b {

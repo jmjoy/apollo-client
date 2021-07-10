@@ -4,7 +4,7 @@ on:
     push:
       branches:
       - master
-#      - develop
+      - develop
     pull_request:
       branches:
       - "**"
@@ -30,9 +30,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    # Already started in integration tests.
-    # - name: Docker compose
-    #   run: docker-compose up -d
+     - name: Docker compose
+       run: docker-compose up -d
     - name: Build
       run: cargo build --release --verbose ${{ matrix.features }}
     - name: Test

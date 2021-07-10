@@ -1,5 +1,5 @@
 use apollo_client::{
-    errors::{ApolloClientError},
+    errors::ApolloClientError,
     open::{
         meta::{OpenCreatedItem, OpenRelease},
         requests::{
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 mod common;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_env_cluster_request() {
     setup();
 
@@ -32,7 +32,7 @@ async fn test_env_cluster_request() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_app_request() {
     setup();
 
@@ -89,7 +89,7 @@ async fn test_app_request() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_cluster_request() {
     setup();
 
@@ -110,7 +110,7 @@ async fn test_cluster_request() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_namespace_request() {
     setup();
 
@@ -129,7 +129,7 @@ async fn test_namespace_request() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_curd_item_request() {
     setup();
 
