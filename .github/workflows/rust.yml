@@ -30,8 +30,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-     - name: Docker compose
-       run: docker-compose up -d
+    - name: Docker compose
+      run: docker-compose up -d
     - name: Build
       run: cargo build --release --verbose ${{ matrix.features }}
     - name: Test
