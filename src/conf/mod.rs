@@ -45,7 +45,7 @@
 //!
 //! Watch configuration and fetch when changed:
 //!
-//! ```
+//! ```no_run
 //! use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClientBuilder};
 //! use cidr_utils::cidr::IpCidr;
 //! use futures_util::{pin_mut, stream::StreamExt};
@@ -151,11 +151,11 @@ impl ApolloConfClientBuilder {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use apollo_client::conf::ApolloConfClientBuilder;
     /// use std::time::Duration;
     ///
-    /// let mut client_builder: ApolloClientBuilder = todo!();
+    /// let mut client_builder: ApolloConfClientBuilder = todo!();
     /// client_builder = client_builder.with_client_builder(|builder| {
     ///     builder.timeout(Duration::from_secs(6))
     /// });
@@ -185,7 +185,7 @@ impl ApolloConfClient {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use apollo_client::{
     ///     conf::{ApolloConfClient, meta::IpValue, requests::CachedFetchRequest},
     ///     errors::ApolloClientResult,
@@ -242,7 +242,7 @@ impl ApolloConfClient {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use apollo_client::conf::{ApolloConfClient, meta::IpValue, requests::WatchRequest};
     /// use cidr_utils::cidr::IpCidr;
     /// use futures_util::{pin_mut, stream::StreamExt};

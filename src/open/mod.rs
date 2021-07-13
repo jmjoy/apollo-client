@@ -75,7 +75,7 @@ impl OpenApiClientBuilder {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use apollo_client::open::OpenApiClientBuilder;
     /// use std::time::Duration;
     ///
@@ -115,13 +115,13 @@ impl OpenApiClient {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use std::error::Error;
-    /// use apollo_client::open::{OpenApiClientBuilder, requests::OpenAppRequest};
+    /// use apollo_client::open::{OpenApiClient, requests::OpenAppRequest};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn Error>> {
-    ///     let client: OpenApiClientBuilder = todo!();
+    ///     let client: OpenApiClient = todo!();
     ///
     ///     let _responses = client
     ///         .execute(
