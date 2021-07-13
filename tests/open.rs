@@ -165,7 +165,7 @@ async fn test_curd_item_request() {
             .execute(
                 OpenCreateItemRequest::builder()
                     .env("DEV")
-                    .app_id("apollo")
+                    .app_id("TestApp2")
                     .namespace_name("application")
                     .item(
                         OpenCreatedItem::builder()
