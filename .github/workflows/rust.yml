@@ -23,9 +23,10 @@ jobs:
 #        - macos-latest
 #        - windows-latest
         features:
-        - ""
         - --no-default-features
-        - --all-features
+        - ""
+        - --no-default-features --features host,open
+        - --features full
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout

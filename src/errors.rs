@@ -4,8 +4,10 @@ use http::StatusCode;
 use reqwest::Response;
 use std::str::Utf8Error;
 
+/// Crate level result.
 pub type ApolloClientResult<T> = Result<T, ApolloClientError>;
 
+/// Crate level error.
 #[derive(thiserror::Error, Debug)]
 pub enum ApolloClientError {
     #[error(transparent)]
@@ -35,10 +37,13 @@ pub enum ApolloClientError {
     EmptyConfiguration,
 }
 
+/// Apollo api response error, when http status is not success.
 #[derive(thiserror::Error, Debug)]
-#[error(r#"apollo response error, status: {status}, body: "{body}""#)]
+#[error(r#"error occurred when apollo response, status: {status}, body: "{body}""#)]
 pub struct ApolloResponseError {
+    /// Http response status.
     pub status: StatusCode,
+    /// Http response body, mainly the error reason.
     pub body: String,
 }
 

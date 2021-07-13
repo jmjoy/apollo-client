@@ -1,4 +1,4 @@
-//! Configuration api metadata.
+//! Configuration api requests.
 
 use crate::{
     conf::{
@@ -13,8 +13,10 @@ use reqwest::RequestBuilder;
 use std::{borrow::Cow, time::Duration};
 use typed_builder::TypedBuilder;
 
+/// Request executed by [crate::conf::ApolloConfClient::execute];
 pub trait PerformConfRequest: PerformRequest {}
 
+/// Request configuration from cache.
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct CachedFetchRequest {
@@ -54,6 +56,7 @@ impl PerformRequest for CachedFetchRequest {
 
 impl PerformConfRequest for CachedFetchRequest {}
 
+/// Request configuration without cache.
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct FetchRequest {
@@ -118,6 +121,7 @@ impl PerformRequest for FetchRequest {
 
 impl PerformConfRequest for FetchRequest {}
 
+/// Listen apollo notification api.
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct NotifyRequest {
@@ -176,7 +180,9 @@ impl PerformRequest for NotifyRequest {
 
 impl PerformConfRequest for NotifyRequest {}
 
-/// Used in [crate::conf::ApolloConfClient::watch].
+/// watch multi namespaces.
+///
+/// Can only be used in [crate::conf::ApolloConfClient::watch].
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct WatchRequest {

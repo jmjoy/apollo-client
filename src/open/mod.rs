@@ -1,6 +1,39 @@
 //! Apollo Open APIs apis.
 //!
 //! Ref: <https://www.apolloconfig.com/#/zh/usage/apollo-open-api-platform>.
+//!
+//! Call open platform api to fetch app infos:
+//!
+//! ```
+//! use std::error::Error;
+//! use apollo_client::open::{OpenApiClientBuilder, requests::OpenAppRequest};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn Error>> {
+//!     env_logger::init();
+//!
+//!     // Create open platform api client.
+//!     let client = OpenApiClientBuilder::new(
+//!         "http://127.0.0.1:8070/".parse()?,
+//!         "391cc4053f8cce2e452a0e6db8925bbba503f434",
+//!     )?
+//!         .build()?;
+//!
+//!     // Execute app fetching request.
+//!     let responses = client
+//!         .execute(
+//!             OpenAppRequest::builder()
+//!                 .app_ids(vec!["SampleApp".into()])
+//!                 .build(),
+//!         )
+//!         .await?;
+//!
+//!     dbg!(responses);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
 
 pub mod meta;
 pub mod requests;
@@ -15,7 +48,7 @@ use http::{header::AUTHORIZATION, HeaderMap, HeaderValue};
 use reqwest::{Client, ClientBuilder};
 use url::Url;
 
-/// The builder of [OpenApiClient].
+/// The builder for [OpenApiClient].
 pub struct OpenApiClientBuilder {
     portal_url: Url,
     token: String,
@@ -23,6 +56,7 @@ pub struct OpenApiClientBuilder {
 }
 
 impl OpenApiClientBuilder {
+    /// Create a builder.
     pub fn new(portal_url: Url, token: impl ToString) -> ApolloClientResult<Self> {
         let mut builder = Self {
             portal_url,
@@ -37,11 +71,25 @@ impl OpenApiClientBuilder {
         Ok(builder)
     }
 
+    /// Customize inner http client.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollo_client::open::OpenApiClientBuilder;
+    /// use std::time::Duration;
+    ///
+    /// let mut client_builder: OpenApiClientBuilder = todo!();
+    /// client_builder = client_builder.with_client_builder(|builder| {
+    ///     builder.timeout(Duration::from_secs(6))
+    /// });
+    /// ```
     pub fn with_client_builder(mut self, f: impl FnOnce(ClientBuilder) -> ClientBuilder) -> Self {
         self.client_builder = f(self.client_builder);
         self
     }
 
+    /// Build the [OpenApiClient].
     pub fn build(self) -> ApolloClientResult<OpenApiClient> {
         Ok(OpenApiClient {
             portal_url: self.portal_url,
@@ -63,6 +111,29 @@ pub struct OpenApiClient {
 }
 
 impl OpenApiClient {
+    /// Execute open Api request.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::error::Error;
+    /// use apollo_client::open::{OpenApiClientBuilder, requests::OpenAppRequest};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn Error>> {
+    ///     let client: OpenApiClientBuilder = todo!();
+    ///
+    ///     let _responses = client
+    ///         .execute(
+    ///             OpenAppRequest::builder()
+    ///                 .app_ids(vec!["SampleApp".into()])
+    ///                 .build(),
+    ///         )
+    ///         .await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn execute<R: PerformResponse>(
         &self,
         request: impl PerformOpenRequest<Response = R>,

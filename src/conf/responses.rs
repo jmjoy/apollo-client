@@ -1,6 +1,9 @@
+//! Configuration api response.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Response of [crate::conf::requests::FetchRequest].
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FetchResponse {

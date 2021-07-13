@@ -1,3 +1,5 @@
+//! open api requests.
+
 use crate::{
     errors::ApolloClientResult,
     meta::{PerformRequest, DEFAULT_CLUSTER_NAME},
@@ -16,8 +18,10 @@ use typed_builder::TypedBuilder;
 
 const OPEN_API_PREFIX: &'static str = "/openapi/v1";
 
+/// Request executed by [crate::open::OpenApiClient::execute];
 pub trait PerformOpenRequest: PerformRequest {}
 
+/// Fetch cluster and environment infos.
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct OpenEnvClusterRequest {
@@ -34,6 +38,7 @@ impl PerformRequest for OpenEnvClusterRequest {
 
 impl PerformOpenRequest for OpenEnvClusterRequest {}
 
+/// Fetch app infos.
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct OpenAppRequest {
@@ -69,6 +74,7 @@ impl PerformRequest for OpenAppRequest {
 
 impl PerformOpenRequest for OpenAppRequest {}
 
+/// Fetch cluster infos.
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct OpenClusterRequest {
@@ -91,6 +97,7 @@ impl PerformRequest for OpenClusterRequest {
 
 impl PerformOpenRequest for OpenClusterRequest {}
 
+/// Fetch namespace info.
 #[derive(Clone, Debug, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct OpenNamespaceRequest {
@@ -113,6 +120,7 @@ impl PerformRequest for OpenNamespaceRequest {
 
 impl PerformOpenRequest for OpenNamespaceRequest {}
 
+/// Create configuration item.
 #[derive(Debug, Clone, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct OpenCreateItemRequest {
@@ -145,6 +153,7 @@ impl PerformRequest for OpenCreateItemRequest {
 
 impl PerformOpenRequest for OpenCreateItemRequest {}
 
+/// Update configuration item.
 #[derive(Debug, Clone, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct OpenUpdateItemRequest {
@@ -192,6 +201,7 @@ impl PerformRequest for OpenUpdateItemRequest {
 
 impl PerformOpenRequest for OpenUpdateItemRequest {}
 
+/// Publish a namespace.
 #[derive(Debug, Clone, TypedBuilder)]
 #[builder(doc, field_defaults(setter(into)))]
 pub struct OpenPublishNamespaceRequest {

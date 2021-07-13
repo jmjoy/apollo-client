@@ -1,6 +1,93 @@
 //! Apollo configuration apis.
 //!
 //! Refs: <https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide>.
+//!
+//! # Example
+//!
+//! Simple fetch configuration:
+//!
+//! ```
+//! use apollo_client::{
+//!     conf::{meta::IpValue, requests::CachedFetchRequest, ApolloConfClientBuilder},
+//!     errors::ApolloClientResult,
+//! };
+//! use ini::Properties;
+//! use std::error::Error;
+//! use url::Url;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn Error>> {
+//!     env_logger::init();
+//!
+//!     // Create configuration client.
+//!     let client =
+//!         ApolloConfClientBuilder::new_via_config_service(Url::parse("http://localhost:8080")?)?
+//!             .build()?;
+//!
+//!     // Request apollo cached configuration api.
+//!     let configuration: Properties = client
+//!         .execute(
+//!             CachedFetchRequest::builder()
+//!                 .app_id("SampleApp")
+//!                 .namespace_name("application.json")
+//!                 .ip(IpValue::HostName)
+//!                 .build(),
+//!         )
+//!         .await?;
+//!
+//!     // Get the content of configuration.
+//!     let content = configuration.get("content");
+//!     dbg!(content);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Watch configuration and fetch when changed:
+//!
+//! ```
+//! use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClientBuilder};
+//! use cidr_utils::cidr::IpCidr;
+//! use futures_util::{pin_mut, stream::StreamExt};
+//! use std::error::Error;
+//! use url::Url;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn Error>> {
+//!     env_logger::init();
+//!
+//!     // Create configuration client.
+//!     let client =
+//!         ApolloConfClientBuilder::new_via_config_service(Url::parse("http://localhost:8080")?)?
+//!             .build()?;
+//!
+//!     // Request apollo notification api, and fetch configuration when notified.
+//!     let stream = client.watch(
+//!         WatchRequest::builder()
+//!             .app_id("SampleApp")
+//!             .namespace_names([
+//!                 "application.properties".into(),
+//!                 "application.json".into(),
+//!                 "application.yml".into(),
+//!             ])
+//!             .ip(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?))
+//!             .build(),
+//!     );
+//!
+//!     pin_mut!(stream);
+//!
+//!     // There is a dead loop, `next()` is returned when configuration has changed.
+//!     while let Some(response) = stream.next().await {
+//!         let responses = response?;
+//!         for response in responses {
+//!             let _ = dbg!(response);
+//!         }
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
 
 pub mod meta;
 pub mod requests;
@@ -32,12 +119,25 @@ enum ServerUrl {
     MetaServer(Url),
 }
 
+/// Builder for [ApolloConfClient].
 pub struct ApolloConfClientBuilder {
     server_url: ServerUrl,
     client_builder: ClientBuilder,
 }
 
 impl ApolloConfClientBuilder {
+    /// Create a client request api via config service.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollo_client::conf::ApolloConfClientBuilder;
+    /// use url::Url;
+    ///
+    /// let _builder = ApolloConfClientBuilder::new_via_config_service(
+    ///     Url::parse("http://localhost:8080").unwrap()
+    /// ).unwrap();
+    /// ```
     pub fn new_via_config_service(config_server_url: Url) -> ApolloClientResult<Self> {
         let mut builder = Self {
             server_url: ServerUrl::ConfigServer(config_server_url),
@@ -47,11 +147,25 @@ impl ApolloConfClientBuilder {
         Ok(builder)
     }
 
+    /// Customize inner http client.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollo_client::conf::ApolloConfClientBuilder;
+    /// use std::time::Duration;
+    ///
+    /// let mut client_builder: ApolloClientBuilder = todo!();
+    /// client_builder = client_builder.with_client_builder(|builder| {
+    ///     builder.timeout(Duration::from_secs(6))
+    /// });
+    /// ```
     pub fn with_client_builder(mut self, f: impl FnOnce(ClientBuilder) -> ClientBuilder) -> Self {
         self.client_builder = f(self.client_builder);
         self
     }
 
+    /// Build the [ApolloConfClient].
     pub fn build(self) -> ApolloClientResult<ApolloConfClient> {
         Ok(ApolloConfClient {
             server_url: self.server_url,
@@ -60,12 +174,45 @@ impl ApolloConfClientBuilder {
     }
 }
 
+/// Apollo configuration apis client.
 pub struct ApolloConfClient {
     server_url: ServerUrl,
     client: Client,
 }
 
 impl ApolloConfClient {
+    /// Execute configuration Api request.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollo_client::{
+    ///     conf::{ApolloConfClient, meta::IpValue, requests::CachedFetchRequest},
+    ///     errors::ApolloClientResult,
+    /// };
+    /// use ini::Properties;
+    /// use std::error::Error;
+    /// use url::Url;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn Error>> {
+    ///     let client: ApolloConfClient = todo!();
+    ///
+    ///     // Request apollo cached configuration api.
+    ///     let _configuration: Properties = client
+    ///         .execute(
+    ///             CachedFetchRequest::builder()
+    ///                 .app_id("SampleApp")
+    ///                 .namespace_name("application.json")
+    ///                 .ip(IpValue::HostName)
+    ///                 .build(),
+    ///         )
+    ///         .await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
     pub async fn execute<R: PerformResponse>(
         &self,
         request: impl PerformConfRequest<Response = R>,
@@ -86,7 +233,7 @@ impl ApolloConfClient {
     /// Return the Stream implemented [futures_core::Stream], and the return value of `poll_next`
     /// will never be None (Dead Loop).
     ///
-    /// The first `poll_next` will fetch all namespaces, the remain will only fetch changed
+    /// The first `poll_next` will fetch all namespaces, the remained will only fetch changed
     /// namespaces.
     ///
     /// # Panic
@@ -103,7 +250,7 @@ impl ApolloConfClient {
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn Error>> {
-    /// let client: ApolloConfigClient = todo!();
+    ///     let client: ApolloConfClient = todo!();
     ///
     ///     let stream = client.watch(
     ///         WatchRequest::builder()
@@ -119,7 +266,7 @@ impl ApolloConfClient {
     ///
     ///     pin_mut!(stream);
     ///
-    ///     // These is a dead loop, `next()` is returned when configuration is changed.
+    ///     // This is a dead loop, `next()` is returned when configuration has changed.
     ///     while let Some(response) = stream.next().await {
     ///         let _ = response?;
     ///     }

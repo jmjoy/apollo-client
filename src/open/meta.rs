@@ -1,7 +1,10 @@
+//! open api metadata.
+
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use typed_builder::TypedBuilder;
 
+/// Item for [crate::open::requests::OpenCreateItemRequest].
 #[derive(Debug, Clone, Serialize, Deserialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
 #[builder(doc, field_defaults(setter(into)))]
@@ -13,6 +16,7 @@ pub struct OpenCreatedItem {
     data_change_created_by: Cow<'static, str>,
 }
 
+/// Item for [crate::open::requests::OpenUpdateItemRequest].
 #[derive(Debug, Clone, Serialize, Deserialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
 #[builder(doc, field_defaults(setter(into)))]
@@ -32,6 +36,7 @@ impl OpenUpdateItem {
     }
 }
 
+/// Item for [crate::open::requests::OpenPublishNamespaceRequest].
 #[derive(Debug, Clone, Serialize, Deserialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
 #[builder(doc, field_defaults(setter(into)))]
