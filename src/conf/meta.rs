@@ -6,18 +6,24 @@ use std::{
     borrow::Cow,
     fmt::{self, Display},
 };
-use typed_builder::TypedBuilder;
 
 pub(crate) const UNINITIALIZED_NOTIFICATION_ID: i32 = -1;
 
 /// Notification for request and response, default notification_id is `-1`.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TypedBuilder)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[builder(doc, field_defaults(setter(into)))]
 pub struct Notification {
-    namespace_name: Cow<'static, str>,
-    #[builder(default_code = "UNINITIALIZED_NOTIFICATION_ID")]
-    notification_id: i32,
+    pub namespace_name: String,
+    pub notification_id: i32,
+}
+
+impl Default for Notification {
+    fn default() -> Self {
+        Self {
+            namespace_name: "".to_string(),
+            notification_id: UNINITIALIZED_NOTIFICATION_ID,
+        }
+    }
 }
 
 impl Notification {
@@ -148,16 +154,17 @@ mod tests {
 
     #[test]
     fn test_notification_new() {
-        let notification = Notification::builder()
-            .namespace_name("foo.properties")
-            .build();
+        let notification = Notification {
+            namespace_name: "foo.properties".to_string(),
+            ..Default::default()
+        };
         assert_eq!(notification.namespace_name, "foo.properties");
         assert_eq!(notification.notification_id, -1);
 
-        let notification = Notification::builder()
-            .namespace_name("foo.yaml")
-            .notification_id(10)
-            .build();
+        let notification = Notification {
+            namespace_name: "foo.yaml".to_string(),
+            notification_id: 10,
+        };
         assert_eq!(notification.namespace_name, "foo.yaml");
         assert_eq!(notification.notification_id, 10);
     }
@@ -165,30 +172,33 @@ mod tests {
     #[test]
     fn test_update_notifications() {
         let mut notifications = [
-            Notification::builder().namespace_name("foo").build(),
-            Notification::builder()
-                .namespace_name("bar")
-                .notification_id(10)
-                .build(),
+            Notification {
+                namespace_name: "foo".to_string(),
+                ..Default::default()
+            },
+            Notification {
+                namespace_name: "bar".to_string(),
+                notification_id: 10,
+            },
         ];
         Notification::update_notifications(
             &mut notifications,
-            &[Notification::builder()
-                .namespace_name("foo")
-                .notification_id(100)
-                .build()],
+            &[Notification {
+                namespace_name: "foo".to_string(),
+                notification_id: 100,
+            }],
         );
         assert_eq!(
             notifications,
             [
-                Notification::builder()
-                    .namespace_name("foo")
-                    .notification_id(100)
-                    .build(),
-                Notification::builder()
-                    .namespace_name("bar")
-                    .notification_id(10)
-                    .build(),
+                Notification {
+                    namespace_name: "foo".to_string(),
+                    notification_id: 100,
+                },
+                Notification {
+                    namespace_name: "bar".to_string(),
+                    notification_id: 10,
+                },
             ]
         );
     }

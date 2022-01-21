@@ -11,23 +11,30 @@ use crate::{
 use ini::Properties;
 use reqwest::RequestBuilder;
 use std::{borrow::Cow, time::Duration};
-use typed_builder::TypedBuilder;
 
 /// Request executed by [crate::conf::ApolloConfClient::execute];
-pub trait PerformConfRequest: PerformRequest {}
+pub(crate) trait PerformConfRequest: PerformRequest {}
 
 /// Request configuration from cache.
-#[derive(Clone, Debug, TypedBuilder)]
-#[builder(doc, field_defaults(setter(into)))]
+#[derive(Clone, Debug)]
 pub struct CachedFetchRequest {
-    app_id: Cow<'static, str>,
-    namespace_name: Cow<'static, str>,
-    #[builder(default, setter(strip_option))]
-    ip: Option<IpValue>,
-    #[builder(default_code = "DEFAULT_CLUSTER_NAME.into()")]
-    cluster_name: Cow<'static, str>,
-    #[builder(default)]
-    extras_queries: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+    pub app_id: String,
+    pub namespace_name: String,
+    pub ip: Option<IpValue>,
+    pub cluster_name: String,
+    pub extras_queries: Vec<(String, String)>,
+}
+
+impl Default for CachedFetchRequest {
+    fn default() -> Self {
+        Self {
+            app_id: "".to_string(),
+            namespace_name: "".to_string(),
+            ip: None,
+            cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
+            extras_queries: vec![],
+        }
+    }
 }
 
 impl PerformRequest for CachedFetchRequest {
@@ -42,13 +49,17 @@ impl PerformRequest for CachedFetchRequest {
         )
     }
 
-    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
+    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'static, str>, Cow<'static, str>)>> {
         let mut pairs = vec![];
         if let Some(ip) = &self.ip {
             pairs.push(("ip".into(), ip.to_string().into()));
         }
         if !self.extras_queries.is_empty() {
-            pairs.extend_from_slice(&self.extras_queries);
+            pairs.extend(
+                self.extras_queries
+                    .iter()
+                    .map(|(k, v)| (k.clone().into(), v.clone().into())),
+            );
         }
         Ok(pairs)
     }
@@ -57,19 +68,27 @@ impl PerformRequest for CachedFetchRequest {
 impl PerformConfRequest for CachedFetchRequest {}
 
 /// Request configuration without cache.
-#[derive(Clone, Debug, TypedBuilder)]
-#[builder(doc, field_defaults(setter(into)))]
+#[derive(Clone, Debug)]
 pub struct FetchRequest {
-    app_id: Cow<'static, str>,
-    namespace_name: Cow<'static, str>,
-    #[builder(default_code = "DEFAULT_CLUSTER_NAME.into()")]
-    cluster_name: Cow<'static, str>,
-    #[builder(default, setter(strip_option))]
-    ip: Option<IpValue>,
-    #[builder(default, setter(strip_option))]
-    release_key: Option<String>,
-    #[builder(default)]
-    extras_queries: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+    pub app_id: String,
+    pub namespace_name: String,
+    pub cluster_name: String,
+    pub ip: Option<IpValue>,
+    pub release_key: Option<String>,
+    pub extras_queries: Vec<(String, String)>,
+}
+
+impl Default for FetchRequest {
+    fn default() -> Self {
+        FetchRequest {
+            app_id: "".to_string(),
+            namespace_name: "".to_string(),
+            cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
+            ip: None,
+            release_key: None,
+            extras_queries: vec![],
+        }
+    }
 }
 
 impl FetchRequest {
@@ -77,14 +96,11 @@ impl FetchRequest {
         self.namespace_name.to_string()
     }
 
-    pub(crate) fn from_watch(
-        watch: &WatchRequest,
-        namespace_name: impl Into<Cow<'static, str>>,
-    ) -> Self {
+    pub(crate) fn from_watch(watch: &WatchRequest, namespace_name: String) -> Self {
         Self {
             app_id: watch.app_id.clone(),
             cluster_name: watch.cluster_name.clone(),
-            namespace_name: namespace_name.into(),
+            namespace_name: namespace_name,
             ip: watch.ip.clone(),
             release_key: None,
             extras_queries: watch.extras_queries.clone(),
@@ -113,7 +129,11 @@ impl PerformRequest for FetchRequest {
             pairs.push(("releaseKey".into(), release_key.clone().into()));
         }
         if !self.extras_queries.is_empty() {
-            pairs.extend_from_slice(&self.extras_queries);
+            pairs.extend(
+                self.extras_queries
+                    .iter()
+                    .map(|(k, v)| (k.clone().into(), v.clone().into())),
+            );
         }
         Ok(pairs)
     }
@@ -122,15 +142,23 @@ impl PerformRequest for FetchRequest {
 impl PerformConfRequest for FetchRequest {}
 
 /// Listen apollo notification api.
-#[derive(Clone, Debug, TypedBuilder)]
-#[builder(doc, field_defaults(setter(into)))]
+#[derive(Clone, Debug)]
 pub struct NotifyRequest {
-    app_id: Cow<'static, str>,
-    notifications: Vec<Notification>,
-    #[builder(default_code = "DEFAULT_CLUSTER_NAME.into()")]
-    cluster_name: Cow<'static, str>,
-    #[builder(default_code = "DEFAULT_NOTIFY_TIMEOUT")]
-    timeout: Duration,
+    pub app_id: String,
+    pub notifications: Vec<Notification>,
+    pub cluster_name: String,
+    pub timeout: Duration,
+}
+
+impl Default for NotifyRequest {
+    fn default() -> Self {
+        NotifyRequest {
+            app_id: "".to_string(),
+            notifications: vec![],
+            cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
+            timeout: DEFAULT_NOTIFY_TIMEOUT,
+        }
+    }
 }
 
 impl NotifyRequest {
@@ -157,15 +185,9 @@ impl PerformRequest for NotifyRequest {
 
     fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
         let notifications = &self.notifications;
-        // let notifications = &self
-        //     .notifications
-        //     .iter()
-        //     .map(|n| Notification::canonicalize(n.clone()))
-        //     .collect::<Vec<_>>();
-
         Ok(vec![
-            ("appId".into(), self.app_id.clone()),
-            ("cluster".into(), self.cluster_name.clone()),
+            ("appId".into(), self.app_id.clone().into()),
+            ("cluster".into(), self.cluster_name.clone().into()),
             (
                 "notifications".into(),
                 serde_json::to_string(notifications)?.into(),
@@ -183,27 +205,34 @@ impl PerformConfRequest for NotifyRequest {}
 /// watch multi namespaces.
 ///
 /// Can only be used in [crate::conf::ApolloConfClient::watch].
-#[derive(Clone, Debug, TypedBuilder)]
-#[builder(doc, field_defaults(setter(into)))]
+#[derive(Clone, Debug)]
 pub struct WatchRequest {
-    app_id: Cow<'static, str>,
-    namespace_names: Vec<Cow<'static, str>>,
-    #[builder(default_code = "DEFAULT_CLUSTER_NAME.into()")]
-    cluster_name: Cow<'static, str>,
-    #[builder(default, setter(strip_option))]
-    ip: Option<IpValue>,
-    #[builder(default)]
-    extras_queries: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+    pub app_id: String,
+    pub namespace_names: Vec<String>,
+    pub cluster_name: String,
+    pub ip: Option<IpValue>,
+    pub extras_queries: Vec<(String, String)>,
+}
+
+impl Default for WatchRequest {
+    fn default() -> Self {
+        WatchRequest {
+            app_id: "".to_string(),
+            namespace_names: vec![],
+            cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
+            ip: None,
+            extras_queries: vec![],
+        }
+    }
 }
 
 impl WatchRequest {
     pub(crate) fn create_notifications(&self) -> Vec<Notification> {
         self.namespace_names
             .iter()
-            .map(|namespace| {
-                Notification::builder()
-                    .namespace_name(namespace.clone())
-                    .build()
+            .map(|namespace| Notification {
+                namespace_name: namespace.clone(),
+                ..Default::default()
             })
             .collect()
     }

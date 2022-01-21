@@ -26,7 +26,7 @@
 //!
 //!     // Request apollo cached configuration api.
 //!     let configuration: Properties = client
-//!         .execute(
+//!         .cached_fetch(
 //!             CachedFetchRequest::builder()
 //!                 .app_id("SampleApp")
 //!                 .namespace_name("application.json")
@@ -87,7 +87,6 @@
 //!     Ok(())
 //! }
 //! ```
-//!
 
 pub mod meta;
 pub mod requests;
@@ -96,7 +95,9 @@ pub mod responses;
 use crate::{
     conf::{
         meta::Notification,
-        requests::{FetchRequest, NotifyRequest, PerformConfRequest, WatchRequest},
+        requests::{
+            CachedFetchRequest, FetchRequest, NotifyRequest, PerformConfRequest, WatchRequest,
+        },
         responses::FetchResponse,
     },
     errors::{ApolloClientError::ApolloResponse, ApolloClientResult},
@@ -108,6 +109,7 @@ use async_stream::stream;
 use futures_core::Stream;
 use futures_util::{stream, StreamExt};
 use http::status::StatusCode;
+use ini::Properties;
 use reqwest::{Client, ClientBuilder};
 use std::collections::HashMap;
 use url::Url;
@@ -135,8 +137,9 @@ impl ApolloConfClientBuilder {
     /// use url::Url;
     ///
     /// let _builder = ApolloConfClientBuilder::new_via_config_service(
-    ///     Url::parse("http://localhost:8080").unwrap()
-    /// ).unwrap();
+    ///     Url::parse("http://localhost:8080").unwrap(),
+    /// )
+    /// .unwrap();
     /// ```
     pub fn new_via_config_service(config_server_url: Url) -> ApolloClientResult<Self> {
         let mut builder = Self {
@@ -155,10 +158,11 @@ impl ApolloConfClientBuilder {
     /// use apollo_client::conf::ApolloConfClientBuilder;
     /// use std::time::Duration;
     ///
-    /// let mut client_builder: ApolloConfClientBuilder = todo!();
-    /// client_builder = client_builder.with_client_builder(|builder| {
-    ///     builder.timeout(Duration::from_secs(6))
-    /// });
+    /// let _builder = ApolloConfClientBuilder::new_via_config_service(
+    ///     Url::parse("http://localhost:8080").unwrap(),
+    /// )
+    /// .with_client_builder(|builder| builder.timeout(Duration::from_secs(6)))
+    /// .unwrap();
     /// ```
     pub fn with_client_builder(mut self, f: impl FnOnce(ClientBuilder) -> ClientBuilder) -> Self {
         self.client_builder = f(self.client_builder);
@@ -181,39 +185,28 @@ pub struct ApolloConfClient {
 }
 
 impl ApolloConfClient {
-    /// Execute configuration Api request.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use apollo_client::{
-    ///     conf::{ApolloConfClient, meta::IpValue, requests::CachedFetchRequest},
-    ///     errors::ApolloClientResult,
-    /// };
-    /// use ini::Properties;
-    /// use std::error::Error;
-    /// use url::Url;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn Error>> {
-    ///     let client: ApolloConfClient = todo!();
-    ///
-    ///     // Request apollo cached configuration api.
-    ///     let _configuration: Properties = client
-    ///         .execute(
-    ///             CachedFetchRequest::builder()
-    ///                 .app_id("SampleApp")
-    ///                 .namespace_name("application.json")
-    ///                 .ip(IpValue::HostName)
-    ///                 .build(),
-    ///         )
-    ///         .await?;
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    ///
-    pub async fn execute<R: PerformResponse>(
+    /// 通过带缓存的Http接口从Apollo读取配置。
+    /// [Ref](https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide?id=_12-%e9%80%9a%e8%bf%87%e5%b8%a6%e7%bc%93%e5%ad%98%e7%9a%84http%e6%8e%a5%e5%8f%a3%e4%bb%8eapollo%e8%af%bb%e5%8f%96%e9%85%8d%e7%bd%ae)
+    pub async fn cached_fetch(
+        &self,
+        request: CachedFetchRequest,
+    ) -> ApolloClientResult<Properties> {
+        self.execute(request).await
+    }
+
+    /// 通过不带缓存的Http接口从Apollo读取配置。
+    /// [Ref](https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide?id=_13-%e9%80%9a%e8%bf%87%e4%b8%8d%e5%b8%a6%e7%bc%93%e5%ad%98%e7%9a%84http%e6%8e%a5%e5%8f%a3%e4%bb%8eapollo%e8%af%bb%e5%8f%96%e9%85%8d%e7%bd%ae)
+    pub async fn fetch(&self, request: FetchRequest) -> ApolloClientResult<FetchResponse> {
+        self.execute(request).await
+    }
+
+    /// 应用感知配置更新。
+    /// [Ref](https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide?id=_14-%e5%ba%94%e7%94%a8%e6%84%9f%e7%9f%a5%e9%85%8d%e7%bd%ae%e6%9b%b4%e6%96%b0)
+    pub async fn notify(&self, request: NotifyRequest) -> ApolloClientResult<Vec<Notification>> {
+        self.execute(request).await
+    }
+
+    async fn execute<R: PerformResponse>(
         &self,
         request: impl PerformConfRequest<Response = R>,
     ) -> ApolloClientResult<R> {
@@ -238,12 +231,12 @@ impl ApolloConfClient {
     ///
     /// # Panic
     ///
-    /// panic if request field `namespace_names` is empty.
+    /// panic if `request.namespace_names` is empty.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use apollo_client::conf::{ApolloConfClient, meta::IpValue, requests::WatchRequest};
+    /// use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClient};
     /// use cidr_utils::cidr::IpCidr;
     /// use futures_util::{pin_mut, stream::StreamExt};
     /// use std::error::Error;
@@ -274,7 +267,6 @@ impl ApolloConfClient {
     ///     Ok(())
     /// }
     /// ```
-    ///
     pub fn watch(
         self,
         request: WatchRequest,

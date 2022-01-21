@@ -57,7 +57,7 @@ impl Display for NamespaceKind {
 }
 
 /// Common api request trait.
-pub trait PerformRequest {
+pub(crate) trait PerformRequest {
     /// The returned response after request is success.
     type Response: PerformResponse;
 
@@ -82,7 +82,7 @@ pub trait PerformRequest {
 
 /// Common api response trait.
 #[async_trait]
-pub trait PerformResponse: Sized {
+pub(crate) trait PerformResponse: Sized {
     /// Create Self from response.
     async fn from_response(response: Response) -> ApolloClientResult<Self>;
 }

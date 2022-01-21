@@ -22,13 +22,12 @@ async fn test_cached_fetch_request() {
 
     {
         let properties = client
-            .execute(
-                CachedFetchRequest::builder()
-                    .app_id("SampleApp")
-                    .namespace_name("application")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .cached_fetch(CachedFetchRequest {
+                app_id: "SampleApp".to_string(),
+                namespace_name: "application".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(properties, {
@@ -40,13 +39,12 @@ async fn test_cached_fetch_request() {
 
     {
         let properties = client
-            .execute(
-                CachedFetchRequest::builder()
-                    .app_id("SampleApp")
-                    .namespace_name("application.json")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .cached_fetch(CachedFetchRequest {
+                app_id: "SampleApp".to_string(),
+                namespace_name: "application.json".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(properties, {
@@ -58,13 +56,12 @@ async fn test_cached_fetch_request() {
 
     {
         let result = client
-            .execute(
-                CachedFetchRequest::builder()
-                    .app_id("NotExistsApp")
-                    .namespace_name("application.json")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .cached_fetch(CachedFetchRequest {
+                app_id: "NotExistsApp".to_string(),
+                namespace_name: "application.json".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await;
         assert!(matches!(
             result,
@@ -74,13 +71,12 @@ async fn test_cached_fetch_request() {
 
     {
         let result = client
-            .execute(
-                CachedFetchRequest::builder()
-                    .app_id("SampleApp")
-                    .namespace_name("notExistsNamesapce")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .cached_fetch(CachedFetchRequest {
+                app_id: "SampleApp".to_string(),
+                namespace_name: "notExistsNamesapce".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await;
         assert!(matches!(
             result,
@@ -92,13 +88,12 @@ async fn test_cached_fetch_request() {
 
     {
         let result = client
-            .execute(
-                CachedFetchRequest::builder()
-                    .app_id("TestApp1")
-                    .namespace_name("application")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .cached_fetch(CachedFetchRequest {
+                app_id: "TestApp1".to_string(),
+                namespace_name: "application".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await;
         assert!(matches!(result, Err(ApolloClientError::EmptyConfiguration)));
     }
@@ -112,13 +107,12 @@ async fn test_fetch_request() {
 
     {
         let response = client
-            .execute(
-                FetchRequest::builder()
-                    .app_id("SampleApp")
-                    .namespace_name("application.properties")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .fetch(FetchRequest {
+                app_id: "SampleApp".to_string(),
+                namespace_name: "application.properties".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(response.app_id, "SampleApp");
@@ -129,13 +123,12 @@ async fn test_fetch_request() {
 
     {
         let response = client
-            .execute(
-                FetchRequest::builder()
-                    .app_id("SampleApp")
-                    .namespace_name("application.json")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .fetch(FetchRequest {
+                app_id: "SampleApp".to_string(),
+                namespace_name: "application.json".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(response.app_id, "SampleApp");
@@ -146,13 +139,12 @@ async fn test_fetch_request() {
 
     {
         let result = client
-            .execute(
-                FetchRequest::builder()
-                    .app_id("NotExistsApp")
-                    .namespace_name("application.json")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .fetch(FetchRequest {
+                app_id: "NotExistsApp".to_string(),
+                namespace_name: "application.json".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await;
         assert!(matches!(
             result,
@@ -164,13 +156,12 @@ async fn test_fetch_request() {
 
     {
         let result = client
-            .execute(
-                FetchRequest::builder()
-                    .app_id("SampleApp")
-                    .namespace_name("notExistsNamesapce")
-                    .ip(IpValue::HostName)
-                    .build(),
-            )
+            .fetch(FetchRequest {
+                app_id: "SampleApp".to_string(),
+                namespace_name: "notExistsNamesapce".to_string(),
+                ip: Some(IpValue::HostName),
+                ..Default::default()
+            })
             .await;
         assert!(matches!(
             result,
@@ -188,13 +179,12 @@ async fn test_watch_first() {
 
     {
         let client = new_client_via_config_service();
-        let stream = client.watch(
-            WatchRequest::builder()
-                .app_id("TestApp1")
-                .namespace_names(["foo1".into(), "foo2.properties".into()])
-                .ip(IpValue::HostName)
-                .build(),
-        );
+        let stream = client.watch(WatchRequest {
+            app_id: "TestApp1".to_string(),
+            namespace_names: vec!["foo1".into(), "foo2.properties".into()],
+            ip: Some(IpValue::HostName),
+            ..Default::default()
+        });
         pin_mut!(stream);
 
         let responses = stream.next().await.unwrap().unwrap();
@@ -213,13 +203,12 @@ async fn test_watch_first() {
 
     {
         let client = new_client_via_config_service();
-        let stream = client.watch(
-            WatchRequest::builder()
-                .app_id("NotExistsApp")
-                .namespace_names(["foo1".into(), "foo2.properties".into()])
-                .ip(IpValue::HostName)
-                .build(),
-        );
+        let stream = client.watch(WatchRequest {
+            app_id: "NotExistsApp".to_string(),
+            namespace_names: vec!["foo1".into(), "foo2.properties".into()],
+            ip: Some(IpValue::HostName),
+            ..Default::default()
+        });
         pin_mut!(stream);
 
         let responses = stream.next().await.unwrap().unwrap();
@@ -240,13 +229,12 @@ async fn test_watch_first() {
 
     {
         let client = new_client_via_config_service();
-        let stream = client.watch(
-            WatchRequest::builder()
-                .app_id("TestApp1")
-                .namespace_names(["foo1".into(), "not_exists_namespace".into()])
-                .ip(IpValue::HostName)
-                .build(),
-        );
+        let stream = client.watch(WatchRequest {
+            app_id: "TestApp1".to_string(),
+            namespace_names: vec!["foo1".into(), "not_exists_namespace".into()],
+            ip: Some(IpValue::HostName),
+            ..Default::default()
+        });
         pin_mut!(stream);
 
         let responses = stream.next().await.unwrap().unwrap();
@@ -284,39 +272,34 @@ async fn test_watch_changed() {
         sleep(Duration::from_secs(3)).await;
 
         client
-            .execute(
-                OpenUpdateItemRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher")
-                    .item(
-                        OpenUpdateItem::builder()
-                            .key("a")
-                            .value("2")
-                            .comment("a comment")
-                            .data_change_last_modified_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .update_item(OpenUpdateItemRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher".to_string(),
+                item: OpenUpdateItem {
+                    key: "a".to_string(),
+                    value: "2".to_string(),
+                    comment: Some("a comment".to_string()),
+                    data_change_last_modified_by: "apollo".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
         client
-            .execute(
-                OpenPublishNamespaceRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher")
-                    .release(
-                        OpenRelease::builder()
-                            .release_title("release a")
-                            .release_comment("release a comment")
-                            .released_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .publish_namespace(OpenPublishNamespaceRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher".to_string(),
+                release: OpenRelease {
+                    release_title: "release a".to_string(),
+                    release_comment: Some("release a comment".to_string()),
+                    released_by: "apollo".to_string(),
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -324,39 +307,34 @@ async fn test_watch_changed() {
         sleep(Duration::from_secs(3)).await;
 
         client
-            .execute(
-                OpenUpdateItemRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher2.json")
-                    .item(
-                        OpenUpdateItem::builder()
-                            .key("content")
-                            .value(r#"{"timeout":"2000"}"#)
-                            .comment("timeout comment")
-                            .data_change_last_modified_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .update_item(OpenUpdateItemRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher2.json".to_string(),
+                item: OpenUpdateItem {
+                    key: "content".to_string(),
+                    value: r#"{"timeout":"2000"}"#.to_string(),
+                    comment: Some("timeout comment".to_string()),
+                    data_change_last_modified_by: "apollo".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
         client
-            .execute(
-                OpenPublishNamespaceRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher2.json")
-                    .release(
-                        OpenRelease::builder()
-                            .release_title("release timeout")
-                            .release_comment("release timeout comment")
-                            .released_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .publish_namespace(OpenPublishNamespaceRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher2.json".to_string(),
+                release: OpenRelease {
+                    release_title: "release timeout".to_string(),
+                    release_comment: Some("release timeout comment".to_string()),
+                    released_by: "apollo".to_string(),
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -364,85 +342,77 @@ async fn test_watch_changed() {
 
         // Restore
         client
-            .execute(
-                OpenUpdateItemRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher")
-                    .item(
-                        OpenUpdateItem::builder()
-                            .key("a")
-                            .value("1")
-                            .data_change_last_modified_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .update_item(OpenUpdateItemRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher".to_string(),
+                item: OpenUpdateItem {
+                    key: "a".to_string(),
+                    value: "1".to_string(),
+                    comment: None,
+                    data_change_last_modified_by: "apollo".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
         client
-            .execute(
-                OpenUpdateItemRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher2.json")
-                    .item(
-                        OpenUpdateItem::builder()
-                            .key("content")
-                            .value(r#"{"timeout":"1500"}"#)
-                            .data_change_last_modified_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .update_item(OpenUpdateItemRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher2.json".to_string(),
+                item: OpenUpdateItem {
+                    key: "content".to_string(),
+                    value: r#"{"timeout":"1500"}"#.to_string(),
+                    data_change_last_modified_by: "apollo".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
         client
-            .execute(
-                OpenPublishNamespaceRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher")
-                    .release(
-                        OpenRelease::builder()
-                            .release_title("restore")
-                            .released_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .publish_namespace(OpenPublishNamespaceRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher".to_string(),
+                release: OpenRelease {
+                    release_title: "restore".to_string(),
+                    released_by: "apollo".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
         client
-            .execute(
-                OpenPublishNamespaceRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("watcher2.json")
-                    .release(
-                        OpenRelease::builder()
-                            .release_title("restore")
-                            .released_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .publish_namespace(OpenPublishNamespaceRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "watcher2.json".to_string(),
+                release: OpenRelease {
+                    release_title: "restore".to_string(),
+                    released_by: "apollo".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
     });
 
     {
         let client = new_client_via_config_service();
-        let stream = client.watch(
-            WatchRequest::builder()
-                .app_id("TestApp2")
-                .namespace_names(["watcher".into(), "watcher2.json".into()])
-                .ip(IpValue::HostName)
-                .build(),
-        );
+        let stream = client.watch(WatchRequest {
+            app_id: "TestApp2".to_string(),
+            namespace_names: vec!["watcher".into(), "watcher2.json".into()],
+            ip: Some(IpValue::HostName),
+            ..Default::default()
+        });
         pin_mut!(stream);
 
         let mut index = 0usize;

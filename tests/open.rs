@@ -22,7 +22,9 @@ async fn test_env_cluster_request() {
 
     {
         let response = client
-            .execute(OpenEnvClusterRequest::builder().app_id("SampleApp").build())
+            .env_cluster(OpenEnvClusterRequest {
+                app_id: "SampleApp".to_string(),
+            })
             .await
             .unwrap();
 
@@ -40,11 +42,9 @@ async fn test_app_request() {
 
     {
         let responses = client
-            .execute(
-                OpenAppRequest::builder()
-                    .app_ids(["NotExists".into()])
-                    .build(),
-            )
+            .app(OpenAppRequest {
+                app_ids: Some(vec!["NotExists".into()]),
+            })
             .await
             .unwrap();
         assert_eq!(responses.len(), 0);
@@ -52,11 +52,9 @@ async fn test_app_request() {
 
     {
         let responses = client
-            .execute(
-                OpenAppRequest::builder()
-                    .app_ids(vec!["SampleApp".into(), "TestApp1".into()])
-                    .build(),
-            )
+            .app(OpenAppRequest {
+                app_ids: Some(vec!["SampleApp".into(), "TestApp1".into()]),
+            })
             .await
             .unwrap();
         let responses = responses
@@ -71,10 +69,7 @@ async fn test_app_request() {
     }
 
     {
-        let responses = client
-            .execute(OpenAppRequest::builder().build())
-            .await
-            .unwrap();
+        let responses = client.app(OpenAppRequest::default()).await.unwrap();
         let responses = responses
             .into_iter()
             .map(|response| (response.app_id.clone(), response))
@@ -97,12 +92,11 @@ async fn test_cluster_request() {
 
     {
         let response = client
-            .execute(
-                OpenClusterRequest::builder()
-                    .env("DEV")
-                    .app_id("SampleApp")
-                    .build(),
-            )
+            .cluster(OpenClusterRequest {
+                env: "DEV".to_string(),
+                app_id: "SampleApp".to_string(),
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(response.name, "default");
@@ -118,12 +112,11 @@ async fn test_namespace_request() {
 
     {
         let _response = client
-            .execute(
-                OpenNamespaceRequest::builder()
-                    .env("DEV")
-                    .app_id("SampleApp")
-                    .build(),
-            )
+            .namespace(OpenNamespaceRequest {
+                env: "DEV".to_string(),
+                app_id: "SampleApp".to_string(),
+                ..Default::default()
+            })
             .await
             .unwrap();
     }
@@ -137,20 +130,18 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(
-                OpenCreateItemRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("application")
-                    .item(
-                        OpenCreatedItem::builder()
-                            .key("timeout")
-                            .value("3000")
-                            .data_change_created_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .create_item(OpenCreateItemRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "application".to_string(),
+                item: OpenCreatedItem {
+                    key: "timeout".to_string(),
+                    value: "3000".to_string(),
+                    comment: None,
+                    data_change_created_by: "apollo".to_string(),
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -162,21 +153,18 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(
-                OpenCreateItemRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("application")
-                    .item(
-                        OpenCreatedItem::builder()
-                            .key("connect_timeout")
-                            .value("100")
-                            .data_change_created_by("apollo")
-                            .comment("connect timeout")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .create_item(OpenCreateItemRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "application".to_string(),
+                item: OpenCreatedItem {
+                    key: "connect_timeout".to_string(),
+                    value: "100".to_string(),
+                    comment: None,
+                    data_change_created_by: "apollo".to_string(),
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -188,20 +176,18 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(
-                OpenCreateItemRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("application")
-                    .item(
-                        OpenCreatedItem::builder()
-                            .key("some_key")
-                            .value("some_value")
-                            .data_change_created_by("not_exists_user")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .create_item(OpenCreateItemRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "application".to_string(),
+                item: OpenCreatedItem {
+                    key: "some_key".to_string(),
+                    value: "some_value".to_string(),
+                    comment: None,
+                    data_change_created_by: "not_exists_user".to_string(),
+                },
+                ..Default::default()
+            })
             .await;
 
         assert!(matches!(
@@ -212,19 +198,17 @@ async fn test_curd_item_request() {
 
     {
         let response = client
-            .execute(
-                OpenPublishNamespaceRequest::builder()
-                    .env("DEV")
-                    .app_id("TestApp2")
-                    .namespace_name("application")
-                    .release(
-                        OpenRelease::builder()
-                            .release_title("test-release")
-                            .released_by("apollo")
-                            .build(),
-                    )
-                    .build(),
-            )
+            .publish_namespace(OpenPublishNamespaceRequest {
+                env: "DEV".to_string(),
+                app_id: "TestApp2".to_string(),
+                namespace_name: "application".to_string(),
+                release: OpenRelease {
+                    release_title: "test-release".to_string(),
+                    release_comment: None,
+                    released_by: "apollo".to_string(),
+                },
+                ..Default::default()
+            })
             .await
             .unwrap();
 

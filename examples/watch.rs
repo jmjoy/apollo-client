@@ -14,17 +14,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .build()?;
 
     // Request apollo notification api, and fetch configuration when notified.
-    let stream = client.watch(
-        WatchRequest::builder()
-            .app_id("SampleApp")
-            .namespace_names([
-                "application.properties".into(),
-                "application.json".into(),
-                "application.yml".into(),
-            ])
-            .ip(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?))
-            .build(),
-    );
+    let stream = client.watch(WatchRequest {
+        app_id: "SampleApp".to_string(),
+        namespace_names: vec![
+            "application.properties".into(),
+            "application.json".into(),
+            "application.yml".into(),
+        ],
+        ip: Some(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?)),
+        ..Default::default()
+    });
 
     pin_mut!(stream);
 

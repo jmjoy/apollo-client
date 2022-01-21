@@ -1,48 +1,66 @@
 //! open api metadata.
 
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use typed_builder::TypedBuilder;
 
 /// Item for [crate::open::requests::OpenCreateItemRequest].
-#[derive(Debug, Clone, Serialize, Deserialize, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[builder(doc, field_defaults(setter(into)))]
 pub struct OpenCreatedItem {
-    key: Cow<'static, str>,
-    value: Cow<'static, str>,
-    #[builder(default, setter(strip_option))]
-    comment: Option<Cow<'static, str>>,
-    data_change_created_by: Cow<'static, str>,
+    pub key: String,
+    pub value: String,
+    pub comment: Option<String>,
+    pub data_change_created_by: String,
+}
+
+impl Default for OpenCreatedItem {
+    fn default() -> Self {
+        OpenCreatedItem {
+            key: "".to_string(),
+            value: "".to_string(),
+            comment: None,
+            data_change_created_by: "".to_string(),
+        }
+    }
 }
 
 /// Item for [crate::open::requests::OpenUpdateItemRequest].
-#[derive(Debug, Clone, Serialize, Deserialize, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[builder(doc, field_defaults(setter(into)))]
 pub struct OpenUpdateItem {
-    key: Cow<'static, str>,
-    value: Cow<'static, str>,
-    #[builder(default, setter(strip_option))]
-    comment: Option<Cow<'static, str>>,
-    #[builder(default, setter(strip_option))]
-    data_change_created_by: Option<Cow<'static, str>>,
-    data_change_last_modified_by: Cow<'static, str>,
+    pub key: String,
+    pub value: String,
+    pub comment: Option<String>,
+    pub data_change_created_by: Option<String>,
+    pub data_change_last_modified_by: String,
 }
 
-impl OpenUpdateItem {
-    pub(crate) fn key(&self) -> &str {
-        &self.key
+impl Default for OpenUpdateItem {
+    fn default() -> Self {
+        OpenUpdateItem {
+            key: "".to_string(),
+            value: "".to_string(),
+            comment: None,
+            data_change_created_by: None,
+            data_change_last_modified_by: "".to_string(),
+        }
     }
 }
 
 /// Item for [crate::open::requests::OpenPublishNamespaceRequest].
-#[derive(Debug, Clone, Serialize, Deserialize, TypedBuilder)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[builder(doc, field_defaults(setter(into)))]
 pub struct OpenRelease {
-    release_title: Cow<'static, str>,
-    #[builder(default, setter(strip_option))]
-    release_comment: Option<Cow<'static, str>>,
-    released_by: Cow<'static, str>,
+    pub release_title: String,
+    pub release_comment: Option<String>,
+    pub released_by: String,
+}
+
+impl Default for OpenRelease {
+    fn default() -> Self {
+        OpenRelease {
+            release_title: "".to_string(),
+            release_comment: None,
+            released_by: "".to_string(),
+        }
+    }
 }

@@ -14,11 +14,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Execute app fetching request.
     let responses = client
-        .execute(
-            OpenAppRequest::builder()
-                .app_ids(vec!["SampleApp".into()])
-                .build(),
-        )
+        .app(OpenAppRequest {
+            app_ids: Some(vec!["SampleApp".to_string()]),
+        })
         .await?;
 
     dbg!(responses);
