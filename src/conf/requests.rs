@@ -100,7 +100,7 @@ impl FetchRequest {
         Self {
             app_id: watch.app_id.clone(),
             cluster_name: watch.cluster_name.clone(),
-            namespace_name: namespace_name,
+            namespace_name,
             ip: watch.ip.clone(),
             release_key: None,
             extras_queries: watch.extras_queries.clone(),

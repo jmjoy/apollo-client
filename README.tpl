@@ -1,3 +1,0 @@
-# Apollo Client
-
-{{readme}}
