@@ -26,13 +26,12 @@
 //!
 //!     // Request apollo cached configuration api.
 //!     let configuration: Properties = client
-//!         .cached_fetch(
-//!             CachedFetchRequest::builder()
-//!                 .app_id("SampleApp")
-//!                 .namespace_name("application.json")
-//!                 .ip(IpValue::HostName)
-//!                 .build(),
-//!         )
+//!         .cached_fetch(CachedFetchRequest {
+//!             app_id: "SampleApp".to_string(),
+//!             namespace_name: "application.json".to_string(),
+//!             ip: Some(IpValue::HostName),
+//!             ..Default::default()
+//!         })
 //!         .await?;
 //!
 //!     // Get the content of configuration.
@@ -62,17 +61,16 @@
 //!             .build()?;
 //!
 //!     // Request apollo notification api, and fetch configuration when notified.
-//!     let stream = client.watch(
-//!         WatchRequest::builder()
-//!             .app_id("SampleApp")
-//!             .namespace_names([
-//!                 "application.properties".into(),
-//!                 "application.json".into(),
-//!                 "application.yml".into(),
-//!             ])
-//!             .ip(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?))
-//!             .build(),
-//!     );
+//!     let stream = client.watch(WatchRequest {
+//!         app_id: "SampleApp".to_string(),
+//!         namespace_names: vec![
+//!             "application.properties".into(),
+//!             "application.json".into(),
+//!             "application.yml".into(),
+//!         ],
+//!         ip: Some(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?)),
+//!         ..Default::default()
+//!     });
 //!
 //!     pin_mut!(stream);
 //!
@@ -157,12 +155,11 @@ impl ApolloConfClientBuilder {
     /// ```no_run
     /// use apollo_client::conf::ApolloConfClientBuilder;
     /// use std::time::Duration;
+    /// use url::Url;
     ///
-    /// let _builder = ApolloConfClientBuilder::new_via_config_service(
-    ///     Url::parse("http://localhost:8080").unwrap(),
-    /// )
-    /// .with_client_builder(|builder| builder.timeout(Duration::from_secs(6)))
-    /// .unwrap();
+    /// ApolloConfClientBuilder::new_via_config_service(Url::parse("http://localhost:8080").unwrap())
+    ///     .unwrap()
+    ///     .with_client_builder(|builder| builder.timeout(Duration::from_secs(6)));
     /// ```
     pub fn with_client_builder(mut self, f: impl FnOnce(ClientBuilder) -> ClientBuilder) -> Self {
         self.client_builder = f(self.client_builder);
@@ -245,17 +242,16 @@ impl ApolloConfClient {
     /// async fn main() -> Result<(), Box<dyn Error>> {
     ///     let client: ApolloConfClient = todo!();
     ///
-    ///     let stream = client.watch(
-    ///         WatchRequest::builder()
-    ///             .app_id("SampleApp")
-    ///             .namespace_names([
-    ///                 "application.properties".into(),
-    ///                 "application.json".into(),
-    ///                 "application.yml".into(),
-    ///             ])
-    ///             .ip(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?))
-    ///             .build(),
-    ///     );
+    ///     let stream = client.watch(WatchRequest {
+    ///         app_id: "SampleApp".to_string(),
+    ///         namespace_names: vec![
+    ///             "application.properties".into(),
+    ///             "application.json".into(),
+    ///             "application.yml".into(),
+    ///         ],
+    ///         ip: Some(IpValue::HostCidr(IpCidr::from_str("172.16.0.0/16")?)),
+    ///         ..Default::default()
+    ///     });
     ///
     ///     pin_mut!(stream);
     ///

@@ -21,11 +21,9 @@
 //!
 //!     // Execute app fetching request.
 //!     let responses = client
-//!         .app(
-//!             OpenAppRequest::builder()
-//!                 .app_ids(vec!["SampleApp".into()])
-//!                 .build(),
-//!         )
+//!         .app(OpenAppRequest {
+//!             app_ids: Some(vec!["SampleApp".into()]),
+//!         })
 //!         .await?;
 //!
 //!     dbg!(responses);
@@ -88,10 +86,11 @@ impl OpenApiClientBuilder {
     /// use apollo_client::open::OpenApiClientBuilder;
     /// use std::time::Duration;
     ///
-    /// let client = OpenApiClientBuilder::new(
-    ///     "http://127.0.0.1:8070/".parse()?,
+    /// OpenApiClientBuilder::new(
+    ///     "http://127.0.0.1:8070/".parse().unwrap(),
     ///     "391cc4053f8cce2e452a0e6db8925bbba503f434",
     /// )
+    /// .unwrap()
     /// .with_client_builder(|builder| builder.timeout(Duration::from_secs(6)));
     /// ```
     pub fn with_client_builder(mut self, f: impl FnOnce(ClientBuilder) -> ClientBuilder) -> Self {
