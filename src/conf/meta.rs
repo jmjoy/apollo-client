@@ -1,6 +1,6 @@
 //! Configuration api metadata.
 
-use crate::conf::requests::{FetchRequest, WatchRequest};
+use crate::{conf::requests::{FetchRequest, WatchRequest}, utils::canonicalize_namespace};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -45,8 +45,9 @@ impl Notification {
 
     pub(crate) fn update_notifications(older: &mut [Self], newer: &[Self]) {
         for newer_item in newer {
+            let newer_namespace_name = canonicalize_namespace(&newer_item.namespace_name);
             for older_item in older.iter_mut() {
-                if older_item.namespace_name == newer_item.namespace_name {
+                if canonicalize_namespace(&older_item.namespace_name) == newer_namespace_name {
                     older_item.notification_id = newer_item.notification_id;
                 }
             }

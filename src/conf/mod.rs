@@ -263,10 +263,10 @@ impl ApolloConfClient {
     ///     Ok(())
     /// }
     /// ```
-    pub fn watch(
-        self,
+    pub fn watch<'a>(
+        &'a self,
         request: WatchRequest,
-    ) -> impl Stream<Item = ApolloClientResult<HashMap<String, ApolloClientResult<FetchResponse>>>>
+    ) -> impl Stream<Item = ApolloClientResult<HashMap<String, ApolloClientResult<FetchResponse>>>> + 'a
     {
         let mut watch_notifications = request.create_notifications();
         let mut fetch_notifications = watch_notifications.clone();
