@@ -120,9 +120,8 @@ pub(crate) trait PerformRequest {
                     }
                 }
             }
-            let sign = format!("{}\n{}", ts, url);
             if let Ok(mut hmac) = HmacWithSha1::new_from_slice(access_key.as_bytes()) {
-                hmac.update(sign.as_bytes());
+                hmac.update(format!("{}\n{}", ts, url).as_bytes());
                 let sign = base64::encode(hmac.finalize().into_bytes());
                 request_builder = request_builder
                     .header(
