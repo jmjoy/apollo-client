@@ -23,6 +23,8 @@ pub struct CachedFetchRequest {
     pub ip: Option<IpValue>,
     pub cluster_name: String,
     pub extras_queries: Vec<(String, String)>,
+    #[cfg(feature = "auth")]
+    pub access_key: Option<String>,
 }
 
 impl Default for CachedFetchRequest {
@@ -33,6 +35,8 @@ impl Default for CachedFetchRequest {
             ip: None,
             cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
             extras_queries: vec![],
+            #[cfg(feature = "auth")]
+            access_key: None,
         }
     }
 }
@@ -63,6 +67,15 @@ impl PerformRequest for CachedFetchRequest {
         }
         Ok(pairs)
     }
+
+    fn app_id(&self) -> &str {
+        &self.app_id
+    }
+
+    #[cfg(feature = "auth")]
+    fn access_key(&self) -> Option<&str> {
+        self.access_key.as_ref().map(|key| key.as_str())
+    }
 }
 
 impl PerformConfRequest for CachedFetchRequest {}
@@ -76,6 +89,8 @@ pub struct FetchRequest {
     pub ip: Option<IpValue>,
     pub release_key: Option<String>,
     pub extras_queries: Vec<(String, String)>,
+    #[cfg(feature = "auth")]
+    pub access_key: Option<String>,
 }
 
 impl Default for FetchRequest {
@@ -87,6 +102,8 @@ impl Default for FetchRequest {
             ip: None,
             release_key: None,
             extras_queries: vec![],
+            #[cfg(feature = "auth")]
+            access_key: None,
         }
     }
 }
@@ -104,6 +121,8 @@ impl FetchRequest {
             ip: watch.ip.clone(),
             release_key: None,
             extras_queries: watch.extras_queries.clone(),
+            #[cfg(feature = "auth")]
+            access_key: None,
         }
     }
 }
@@ -136,6 +155,15 @@ impl PerformRequest for FetchRequest {
             );
         }
         Ok(pairs)
+    }
+
+    fn app_id(&self) -> &str {
+        &self.app_id
+    }
+
+    #[cfg(feature = "auth")]
+    fn access_key(&self) -> Option<&str> {
+        self.access_key.as_ref().map(|key| key.as_str())
     }
 }
 
@@ -197,6 +225,10 @@ impl PerformRequest for NotifyRequest {
 
     fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
         request_builder.timeout(self.timeout)
+    }
+
+    fn app_id(&self) -> &str {
+        &self.app_id
     }
 }
 
