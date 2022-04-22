@@ -112,7 +112,11 @@ pub(crate) trait PerformRequest {
                 if !queries.is_empty() {
                     url += "?";
                     for (key, val) in queries {
-                        url += &format!("{}={}", key, val);
+                        url += &format!(
+                            "{}={}",
+                            urlencoding::encode(&key),
+                            urlencoding::encode(&val)
+                        );
                     }
                 }
             }
