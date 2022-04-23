@@ -111,9 +111,10 @@ pub(crate) trait PerformRequest {
             if let Ok(queries) = self.queries() {
                 if !queries.is_empty() {
                     url += "?";
-                    for (key, val) in queries {
+                    for (idx, (key, val)) in queries.into_iter().enumerate() {
                         url += &format!(
-                            "{}={}",
+                            "{}{}={}",
+                            if idx > 0 { "&" } else { "" },
                             urlencoding::encode(&key),
                             urlencoding::encode(&val)
                         );
