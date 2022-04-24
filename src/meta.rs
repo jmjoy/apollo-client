@@ -77,10 +77,8 @@ pub(crate) trait PerformRequest {
     /// Handle extras operator, such as set request body.
     #[allow(unused_mut)]
     fn request_builder(&self, mut request_builder: RequestBuilder) -> RequestBuilder {
-        //FIXME
-        //see issue #15701 <https://github.com/rust-lang/rust/issues/15701>
         #[cfg(feature = "auth")]
-        if true {
+        {
             request_builder = self.signature(request_builder);
         }
         request_builder
