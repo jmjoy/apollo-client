@@ -25,7 +25,7 @@ jobs:
         features:
         - --no-default-features
         - ""
-        - --no-default-features --features host,open
+#        - --no-default-features --features host,open
 #        - --features full
     runs-on: ${{ matrix.os }}
     steps:
