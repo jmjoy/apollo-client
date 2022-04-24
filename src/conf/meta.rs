@@ -1,6 +1,9 @@
 //! Configuration api metadata.
 
-use crate::{conf::requests::{FetchRequest, WatchRequest}, utils::canonicalize_namespace};
+use crate::{
+    conf::requests::{FetchRequest, WatchRequest},
+    utils::canonicalize_namespace,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
