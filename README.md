@@ -23,7 +23,7 @@ $ cargo add -s --features full apollo-client
 
 - [x] Fetch config via config service.
 - [ ] Fetch config via mata service.
-- [ ] Authorization for configuration api.
+- [x] Authorization for configuration api.
 - [x] Apollo open apis.
 
 ## Features
