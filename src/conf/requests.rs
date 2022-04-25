@@ -24,6 +24,7 @@ pub struct CachedFetchRequest {
     pub cluster_name: String,
     pub extras_queries: Vec<(String, String)>,
     #[cfg(feature = "auth")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "auth")))]
     pub access_key: Option<String>,
 }
 
@@ -90,6 +91,7 @@ pub struct FetchRequest {
     pub release_key: Option<String>,
     pub extras_queries: Vec<(String, String)>,
     #[cfg(feature = "auth")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "auth")))]
     pub access_key: Option<String>,
 }
 
@@ -177,6 +179,7 @@ pub struct NotifyRequest {
     pub cluster_name: String,
     pub timeout: Duration,
     #[cfg(feature = "auth")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "auth")))]
     pub access_key: Option<String>,
 }
 
