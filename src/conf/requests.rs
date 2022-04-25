@@ -23,6 +23,9 @@ pub struct CachedFetchRequest {
     pub ip: Option<IpValue>,
     pub cluster_name: String,
     pub extras_queries: Vec<(String, String)>,
+    #[cfg(feature = "auth")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "auth")))]
+    pub access_key: Option<String>,
 }
 
 impl Default for CachedFetchRequest {
@@ -33,6 +36,8 @@ impl Default for CachedFetchRequest {
             ip: None,
             cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
             extras_queries: vec![],
+            #[cfg(feature = "auth")]
+            access_key: None,
         }
     }
 }
@@ -63,6 +68,15 @@ impl PerformRequest for CachedFetchRequest {
         }
         Ok(pairs)
     }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
+    }
+
+    #[cfg(feature = "auth")]
+    fn access_key(&self) -> Option<&str> {
+        self.access_key.as_ref().map(|key| key.as_str())
+    }
 }
 
 impl PerformConfRequest for CachedFetchRequest {}
@@ -76,6 +90,9 @@ pub struct FetchRequest {
     pub ip: Option<IpValue>,
     pub release_key: Option<String>,
     pub extras_queries: Vec<(String, String)>,
+    #[cfg(feature = "auth")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "auth")))]
+    pub access_key: Option<String>,
 }
 
 impl Default for FetchRequest {
@@ -87,6 +104,8 @@ impl Default for FetchRequest {
             ip: None,
             release_key: None,
             extras_queries: vec![],
+            #[cfg(feature = "auth")]
+            access_key: None,
         }
     }
 }
@@ -104,6 +123,8 @@ impl FetchRequest {
             ip: watch.ip.clone(),
             release_key: None,
             extras_queries: watch.extras_queries.clone(),
+            #[cfg(feature = "auth")]
+            access_key: watch.access_key.clone(),
         }
     }
 }
@@ -137,6 +158,15 @@ impl PerformRequest for FetchRequest {
         }
         Ok(pairs)
     }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
+    }
+
+    #[cfg(feature = "auth")]
+    fn access_key(&self) -> Option<&str> {
+        self.access_key.as_ref().map(|key| key.as_str())
+    }
 }
 
 impl PerformConfRequest for FetchRequest {}
@@ -148,6 +178,9 @@ pub struct NotifyRequest {
     pub notifications: Vec<Notification>,
     pub cluster_name: String,
     pub timeout: Duration,
+    #[cfg(feature = "auth")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "auth")))]
+    pub access_key: Option<String>,
 }
 
 impl Default for NotifyRequest {
@@ -157,6 +190,8 @@ impl Default for NotifyRequest {
             notifications: vec![],
             cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
             timeout: DEFAULT_NOTIFY_TIMEOUT,
+            #[cfg(feature = "auth")]
+            access_key: None,
         }
     }
 }
@@ -172,6 +207,8 @@ impl NotifyRequest {
             cluster_name: watch.cluster_name.clone(),
             notifications,
             timeout,
+            #[cfg(feature = "auth")]
+            access_key: watch.access_key.clone(),
         }
     }
 }
@@ -195,8 +232,24 @@ impl PerformRequest for NotifyRequest {
         ])
     }
 
-    fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
+    #[allow(unused_mut)]
+    fn request_builder(&self, mut request_builder: RequestBuilder) -> RequestBuilder {
+        //FIXME
+        //see issue #15701 <https://github.com/rust-lang/rust/issues/15701>
+        #[cfg(feature = "auth")]
+        {
+            request_builder = self.signature(request_builder);
+        }
         request_builder.timeout(self.timeout)
+    }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
+    }
+
+    #[cfg(feature = "auth")]
+    fn access_key(&self) -> Option<&str> {
+        self.access_key.as_ref().map(|key| key.as_str())
     }
 }
 
@@ -212,6 +265,8 @@ pub struct WatchRequest {
     pub cluster_name: String,
     pub ip: Option<IpValue>,
     pub extras_queries: Vec<(String, String)>,
+    #[cfg(feature = "auth")]
+    pub access_key: Option<String>,
 }
 
 impl Default for WatchRequest {
@@ -222,6 +277,8 @@ impl Default for WatchRequest {
             cluster_name: DEFAULT_CLUSTER_NAME.to_string(),
             ip: None,
             extras_queries: vec![],
+            #[cfg(feature = "auth")]
+            access_key: None,
         }
     }
 }
