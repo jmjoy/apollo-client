@@ -79,18 +79,20 @@ pub(crate) trait PerformRequest {
     fn request_builder(&self, mut request_builder: RequestBuilder) -> RequestBuilder {
         //FIXME
         //see issue #15701 <https://github.com/rust-lang/rust/issues/15701>
-        #[cfg(feature = "auth")]
-        if true {
+        #[cfg(all(feature = "auth", feature = "conf"))]
+        {
             request_builder = self.signature(request_builder);
         }
         request_builder
     }
 
     /// AppId
-    fn app_id(&self) -> &str;
+    fn app_id(&self) -> Option<&str> {
+        None
+    }
 
     /// Access key
-    #[cfg(feature = "auth")]
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn access_key(&self) -> Option<&str> {
         None
     }
@@ -100,12 +102,12 @@ pub(crate) trait PerformRequest {
     /// # Documentation
     ///
     /// https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide?id=_15-%e9%85%8d%e7%bd%ae%e8%ae%bf%e9%97%ae%e5%af%86%e9%92%a5
-    #[cfg(feature = "auth")]
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn signature(&self, mut request_builder: RequestBuilder) -> RequestBuilder {
         use hmac::{Mac, SimpleHmac};
         use sha1::Sha1;
         type HmacWithSha1 = SimpleHmac<Sha1>;
-        if let Some(access_key) = self.access_key() {
+        if let (Some(app_id), Some(access_key)) = (self.app_id(), self.access_key()) {
             let ts = chrono::Utc::now().timestamp_millis();
             let mut url = self.path();
             if let Ok(queries) = self.queries() {
@@ -127,7 +129,7 @@ pub(crate) trait PerformRequest {
                 request_builder = request_builder
                     .header(
                         reqwest::header::AUTHORIZATION,
-                        format!("Apollo {}:{}", self.app_id(), sign),
+                        format!("Apollo {}:{}", app_id, sign),
                     )
                     .header("Timestamp", ts);
             }

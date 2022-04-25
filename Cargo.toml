@@ -19,11 +19,11 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["conf", "host"]
-conf = ["async-stream", "rust-ini"]
+default = ["conf"]
+conf = ["async-stream", "rust-ini", "host"]
+host = ["host-ip", "host-name"]
 host-ip = ["systemstat", "cidr-utils"]
 host-name = ["hostname"]
-host = ["host-ip", "host-name"]
 open = ["chrono/serde"]
 full = ["open"]
 auth = ["chrono","hmac","sha1","base64","urlencoding"]

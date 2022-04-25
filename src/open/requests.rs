@@ -40,6 +40,10 @@ impl PerformRequest for OpenEnvClusterRequest {
     fn path(&self) -> String {
         format!("{}/apps/{}/envclusters", OPEN_API_PREFIX, self.app_id)
     }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
+    }
 }
 
 impl PerformOpenRequest for OpenEnvClusterRequest {}
@@ -111,6 +115,10 @@ impl PerformRequest for OpenClusterRequest {
             OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name
         )
     }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
+    }
 }
 
 impl PerformOpenRequest for OpenClusterRequest {}
@@ -141,6 +149,10 @@ impl PerformRequest for OpenNamespaceRequest {
             "{}/envs/{}/apps/{}/clusters/{}/namespaces",
             OPEN_API_PREFIX, self.env, self.app_id, self.cluster_name
         )
+    }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
     }
 }
 
@@ -184,6 +196,10 @@ impl PerformRequest for OpenCreateItemRequest {
 
     fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
         request_builder.json(&self.item)
+    }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
     }
 }
 
@@ -243,6 +259,10 @@ impl PerformRequest for OpenUpdateItemRequest {
     fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
         request_builder.json(&self.item)
     }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
+    }
 }
 
 impl PerformOpenRequest for OpenUpdateItemRequest {}
@@ -285,6 +305,10 @@ impl PerformRequest for OpenPublishNamespaceRequest {
 
     fn request_builder(&self, request_builder: RequestBuilder) -> RequestBuilder {
         request_builder.json(&self.release)
+    }
+
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
     }
 }
 

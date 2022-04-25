@@ -68,8 +68,8 @@ impl PerformRequest for CachedFetchRequest {
         Ok(pairs)
     }
 
-    fn app_id(&self) -> &str {
-        &self.app_id
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
     }
 
     #[cfg(feature = "auth")]
@@ -157,8 +157,8 @@ impl PerformRequest for FetchRequest {
         Ok(pairs)
     }
 
-    fn app_id(&self) -> &str {
-        &self.app_id
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
     }
 
     #[cfg(feature = "auth")]
@@ -234,14 +234,14 @@ impl PerformRequest for NotifyRequest {
         //FIXME
         //see issue #15701 <https://github.com/rust-lang/rust/issues/15701>
         #[cfg(feature = "auth")]
-        if true {
+        {
             request_builder = self.signature(request_builder);
         }
         request_builder.timeout(self.timeout)
     }
 
-    fn app_id(&self) -> &str {
-        &self.app_id
+    fn app_id(&self) -> Option<&str> {
+        Some(&self.app_id)
     }
 
     #[cfg(feature = "auth")]
