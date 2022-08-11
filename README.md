@@ -6,7 +6,7 @@
 [![Lines](https://img.shields.io/tokei/lines/github/jmjoy/apollo-client)](https://github.com/jmjoy/apollo-client)
 [![License](https://img.shields.io/crates/l/apollo-client)](https://github.com/jmjoy/apollo-client/blob/master/LICENSE)
 
-Rust🦀 client for [Ctrip Apollo](https://github.com/ctripcorp/apollo).
+[Ctrip Apollo](https://github.com/ctripcorp/apollo) client for Rust🦀.
 
 Power by Rust `async/await`.
 
