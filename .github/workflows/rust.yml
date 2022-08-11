@@ -27,7 +27,7 @@ jobs:
         - ""
         - --no-default-features --features auth,conf
 #        - --no-default-features --features host,open
-#        - --features full
+        - --features full
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
