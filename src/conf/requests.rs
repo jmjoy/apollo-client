@@ -47,7 +47,7 @@ impl PerformRequest for CachedFetchRequest {
 
     fn path(&self) -> String {
         format!(
-            "/configfiles/{app_id}/{cluster_name}/{namespace_name}",
+            "configfiles/{app_id}/{cluster_name}/{namespace_name}",
             app_id = self.app_id,
             cluster_name = self.cluster_name,
             namespace_name = self.namespace_name
@@ -134,7 +134,7 @@ impl PerformRequest for FetchRequest {
 
     fn path(&self) -> String {
         format!(
-            "/configs/{app_id}/{cluster_name}/{namespace_name}",
+            "configs/{app_id}/{cluster_name}/{namespace_name}",
             app_id = self.app_id,
             cluster_name = self.cluster_name,
             namespace_name = self.namespace_name
@@ -217,7 +217,7 @@ impl PerformRequest for NotifyRequest {
     type Response = Vec<Notification>;
 
     fn path(&self) -> String {
-        "/notifications/v2".to_string()
+        "notifications/v2".to_string()
     }
 
     fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
