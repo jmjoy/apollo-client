@@ -15,7 +15,7 @@ use http::Method;
 use reqwest::RequestBuilder;
 use std::borrow::Cow;
 
-const OPEN_API_PREFIX: &'static str = "/openapi/v1";
+const OPEN_API_PREFIX: &'static str = "openapi/v1";
 
 /// Request executed by [crate::open::OpenApiClient::execute];
 pub(crate) trait PerformOpenRequest: PerformRequest {}
