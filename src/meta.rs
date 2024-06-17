@@ -109,7 +109,7 @@ pub(crate) trait PerformRequest {
         type HmacWithSha1 = SimpleHmac<Sha1>;
         if let (Some(app_id), Some(access_key)) = (self.app_id(), self.access_key()) {
             let ts = chrono::Utc::now().timestamp_millis();
-            let mut url = self.path();
+            let mut url = format!("/{}", self.path());
             if let Ok(queries) = self.queries() {
                 if !queries.is_empty() {
                     url += "?";
