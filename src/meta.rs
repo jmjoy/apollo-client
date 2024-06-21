@@ -173,7 +173,7 @@ pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> Apollo
 
     url.path_segments_mut()
         .map_err(|_| crate::errors::ApolloClientError::UrlCannotBeABase)?
-        .extend(path.split('/'));
+        .push(path.trim_start_matches('/'));
     if !query.is_empty() {
         url.query_pairs_mut().extend_pairs(query);
     }
