@@ -155,6 +155,7 @@ impl Display for IpValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_notification_new() {
