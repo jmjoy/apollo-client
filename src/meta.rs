@@ -1,11 +1,8 @@
 //! Common api metadata.
 
 use crate::errors::{ApolloClientResult, ApolloResponseError};
-use async_trait::async_trait;
-use http::Method;
-use reqwest::{RequestBuilder, Response};
-use std::{borrow::Cow, fmt, fmt::Display, time::Duration};
-use url::Url;
+use reqwest::Response;
+use std::{fmt, fmt::Display, time::Duration};
 
 #[allow(dead_code)]
 pub(crate) const DEFAULT_CLUSTER_NAME: &str = "default";
@@ -57,6 +54,7 @@ impl Display for NamespaceKind {
 }
 
 /// Common api request trait.
+#[cfg(feature = "conf")]
 pub(crate) trait PerformRequest {
     /// The returned response after request is success.
     type Response: PerformResponse;
@@ -66,17 +64,22 @@ pub(crate) trait PerformRequest {
 
     /// Request method.
     fn method(&self) -> http::Method {
-        Method::GET
+        http::Method::GET
     }
 
     /// Url queries.
-    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
+    fn queries(
+        &self,
+    ) -> ApolloClientResult<Vec<(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)>> {
         Ok(vec![])
     }
 
     /// Handle extras operator, such as set request body.
     #[allow(unused_mut)]
-    fn request_builder(&self, mut request_builder: RequestBuilder) -> RequestBuilder {
+    fn request_builder(
+        &self,
+        mut request_builder: reqwest::RequestBuilder,
+    ) -> reqwest::RequestBuilder {
         //FIXME
         //see issue #15701 <https://github.com/rust-lang/rust/issues/15701>
         #[cfg(all(feature = "auth", feature = "conf"))]
@@ -87,6 +90,7 @@ pub(crate) trait PerformRequest {
     }
 
     /// AppId
+    #[allow(dead_code)]
     fn app_id(&self) -> Option<&str> {
         None
     }
@@ -103,7 +107,7 @@ pub(crate) trait PerformRequest {
     ///
     /// https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide?id=_15-%e9%85%8d%e7%bd%ae%e8%ae%bf%e9%97%ae%e5%af%86%e9%92%a5
     #[cfg(all(feature = "auth", feature = "conf"))]
-    fn signature(&self, mut request_builder: RequestBuilder) -> RequestBuilder {
+    fn signature(&self, mut request_builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         use hmac::{Mac, SimpleHmac};
         use sha1::Sha1;
         type HmacWithSha1 = SimpleHmac<Sha1>;
@@ -139,13 +143,15 @@ pub(crate) trait PerformRequest {
 }
 
 /// Common api response trait.
-#[async_trait]
+#[cfg(feature = "conf")]
+#[async_trait::async_trait]
 pub(crate) trait PerformResponse: Sized {
     /// Create Self from response.
     async fn from_response(response: Response) -> ApolloClientResult<Self>;
 }
 
-#[async_trait]
+#[cfg(feature = "conf")]
+#[async_trait::async_trait]
 impl PerformResponse for () {
     async fn from_response(_response: Response) -> ApolloClientResult<Self> {
         Ok(())
@@ -153,7 +159,7 @@ impl PerformResponse for () {
 }
 
 #[cfg(feature = "conf")]
-#[async_trait]
+#[async_trait::async_trait]
 impl PerformResponse for ini::Properties {
     async fn from_response(response: Response) -> ApolloClientResult<Self> {
         let content = response.text().await?;
@@ -165,15 +171,18 @@ impl PerformResponse for ini::Properties {
 }
 
 /// Create request url from base url, mainly path and queries.
-#[allow(dead_code)]
-pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> ApolloClientResult<Url> {
+#[cfg(feature = "conf")]
+pub(crate) fn handle_url(
+    request: &impl PerformRequest,
+    base_url: url::Url,
+) -> ApolloClientResult<url::Url> {
     let mut url = base_url;
     let path = &request.path();
     let query = &request.queries()?;
 
     url.path_segments_mut()
         .map_err(|_| crate::errors::ApolloClientError::UrlCannotBeABase)?
-        .extend(path.split('/'));
+        .extend(path.split('/').skip_while(|s| s.is_empty()));
     if !query.is_empty() {
         url.query_pairs_mut().extend_pairs(query);
     }
