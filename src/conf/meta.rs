@@ -141,7 +141,7 @@ impl Display for IpValue {
                 IpValue::HostCidr(cidr) => {
                     Self::get_all_addrs()
                         .iter()
-                        .find(|addr| cidr.contains(**addr))
+                        .find(|addr| cidr.contains(*addr))
                         .map(|s| Cow::Owned(s.to_string()))
                         .unwrap_or(Cow::Borrowed("127.0.0.1"))
                 }

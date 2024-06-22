@@ -108,6 +108,7 @@ pub(crate) trait PerformRequest {
     /// https://www.apolloconfig.com/#/zh/usage/other-language-client-user-guide?id=_15-%e9%85%8d%e7%bd%ae%e8%ae%bf%e9%97%ae%e5%af%86%e9%92%a5
     #[cfg(all(feature = "auth", feature = "conf"))]
     fn signature(&self, mut request_builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        use base64::{engine::general_purpose::STANDARD, Engine};
         use hmac::{Mac, SimpleHmac};
         use sha1::Sha1;
         type HmacWithSha1 = SimpleHmac<Sha1>;
@@ -129,7 +130,7 @@ pub(crate) trait PerformRequest {
             }
             if let Ok(mut hmac) = HmacWithSha1::new_from_slice(access_key.as_bytes()) {
                 hmac.update(format!("{}\n{}", ts, url).as_bytes());
-                let sign = base64::encode(hmac.finalize().into_bytes());
+                let sign = STANDARD.encode(hmac.finalize().into_bytes());
                 request_builder = request_builder
                     .header(
                         reqwest::header::AUTHORIZATION,
