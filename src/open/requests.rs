@@ -49,12 +49,10 @@ impl PerformRequest for OpenEnvClusterRequest {
 impl PerformOpenRequest for OpenEnvClusterRequest {}
 
 /// Fetch app infos.
-#[derive(Clone, Debug)]
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct OpenAppRequest {
     pub app_ids: Option<Vec<String>>,
 }
-
 
 impl PerformRequest for OpenAppRequest {
     type Response = Vec<OpenAppResponse>;
