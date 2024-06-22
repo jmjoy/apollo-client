@@ -75,7 +75,7 @@ impl PerformRequest for CachedFetchRequest {
 
     #[cfg(feature = "auth")]
     fn access_key(&self) -> Option<&str> {
-        self.access_key.as_ref().map(|key| key.as_str())
+        self.access_key.as_deref()
     }
 }
 
@@ -165,7 +165,7 @@ impl PerformRequest for FetchRequest {
 
     #[cfg(feature = "auth")]
     fn access_key(&self) -> Option<&str> {
-        self.access_key.as_ref().map(|key| key.as_str())
+        self.access_key.as_deref()
     }
 }
 
@@ -249,7 +249,7 @@ impl PerformRequest for NotifyRequest {
 
     #[cfg(feature = "auth")]
     fn access_key(&self) -> Option<&str> {
-        self.access_key.as_ref().map(|key| key.as_str())
+        self.access_key.as_deref()
     }
 }
 

@@ -15,7 +15,7 @@ use http::Method;
 use reqwest::RequestBuilder;
 use std::borrow::Cow;
 
-const OPEN_API_PREFIX: &'static str = "openapi/v1";
+const OPEN_API_PREFIX: &str = "openapi/v1";
 
 /// Request executed by [crate::open::OpenApiClient::execute];
 pub(crate) trait PerformOpenRequest: PerformRequest {}
@@ -50,15 +50,11 @@ impl PerformOpenRequest for OpenEnvClusterRequest {}
 
 /// Fetch app infos.
 #[derive(Clone, Debug)]
+#[derive(Default)]
 pub struct OpenAppRequest {
     pub app_ids: Option<Vec<String>>,
 }
 
-impl Default for OpenAppRequest {
-    fn default() -> Self {
-        OpenAppRequest { app_ids: None }
-    }
-}
 
 impl PerformRequest for OpenAppRequest {
     type Response = Vec<OpenAppResponse>;

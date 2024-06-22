@@ -97,7 +97,7 @@ fn setup_mysql() {
 
     let mut cmd = Command::new("mysql");
     let output = cmd
-        .args(&["-h", "127.0.0.1", "-u", "root"])
+        .args(["-h", "127.0.0.1", "-u", "root"])
         .stdin(sql_file)
         .output()
         .unwrap();
