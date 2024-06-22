@@ -42,6 +42,7 @@ impl Default for CachedFetchRequest {
     }
 }
 
+#[cfg(feature = "conf")]
 impl PerformRequest for CachedFetchRequest {
     type Response = Properties;
 
@@ -130,6 +131,7 @@ impl FetchRequest {
     }
 }
 
+#[cfg(feature = "conf")]
 impl PerformRequest for FetchRequest {
     type Response = FetchResponse;
 
@@ -215,6 +217,7 @@ impl NotifyRequest {
     }
 }
 
+#[cfg(feature = "conf")]
 impl PerformRequest for NotifyRequest {
     type Response = Vec<Notification>;
 

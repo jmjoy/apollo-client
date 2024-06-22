@@ -1,6 +1,8 @@
 //! Crate level errors.
 
+#[cfg(feature = "conf")]
 use http::StatusCode;
+#[cfg(feature = "conf")]
 use reqwest::Response;
 use std::str::Utf8Error;
 
@@ -27,6 +29,7 @@ pub enum ApolloClientError {
     #[error(transparent)]
     IniParse(#[from] ini::ParseError),
 
+    #[cfg(feature = "conf")]
     #[error(transparent)]
     ApolloResponse(#[from] ApolloResponseError),
 
@@ -38,6 +41,7 @@ pub enum ApolloClientError {
 }
 
 /// Apollo api response error, when http status is not success.
+#[cfg(feature = "conf")]
 #[derive(thiserror::Error, Debug)]
 #[error(r#"error occurred when apollo response, status: {status}, body: "{body}""#)]
 pub struct ApolloResponseError {
@@ -47,6 +51,7 @@ pub struct ApolloResponseError {
     pub body: String,
 }
 
+#[cfg(feature = "conf")]
 impl ApolloResponseError {
     pub(crate) async fn from_response(response: Response) -> Result<Response, Self> {
         if response.status().is_success() {

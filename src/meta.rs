@@ -1,11 +1,10 @@
 //! Common api metadata.
 
+#[cfg(feature = "conf")]
 use crate::errors::{ApolloClientResult, ApolloResponseError};
-use async_trait::async_trait;
-use http::Method;
+#[cfg(feature = "conf")]
 use reqwest::{RequestBuilder, Response};
-use std::{borrow::Cow, fmt, fmt::Display, time::Duration};
-use url::Url;
+use std::{fmt, fmt::Display, time::Duration};
 
 #[allow(dead_code)]
 pub(crate) const DEFAULT_CLUSTER_NAME: &str = "default";
@@ -57,6 +56,7 @@ impl Display for NamespaceKind {
 }
 
 /// Common api request trait.
+#[cfg(feature = "conf")]
 pub(crate) trait PerformRequest {
     /// The returned response after request is success.
     type Response: PerformResponse;
@@ -66,11 +66,13 @@ pub(crate) trait PerformRequest {
 
     /// Request method.
     fn method(&self) -> http::Method {
-        Method::GET
+        http::Method::GET
     }
 
     /// Url queries.
-    fn queries(&self) -> ApolloClientResult<Vec<(Cow<'_, str>, Cow<'_, str>)>> {
+    fn queries(
+        &self,
+    ) -> ApolloClientResult<Vec<(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)>> {
         Ok(vec![])
     }
 
@@ -140,13 +142,15 @@ pub(crate) trait PerformRequest {
 }
 
 /// Common api response trait.
-#[async_trait]
+#[cfg(feature = "conf")]
+#[async_trait::async_trait]
 pub(crate) trait PerformResponse: Sized {
     /// Create Self from response.
     async fn from_response(response: Response) -> ApolloClientResult<Self>;
 }
 
-#[async_trait]
+#[cfg(feature = "conf")]
+#[async_trait::async_trait]
 impl PerformResponse for () {
     async fn from_response(_response: Response) -> ApolloClientResult<Self> {
         Ok(())
@@ -154,7 +158,7 @@ impl PerformResponse for () {
 }
 
 #[cfg(feature = "conf")]
-#[async_trait]
+#[async_trait::async_trait]
 impl PerformResponse for ini::Properties {
     async fn from_response(response: Response) -> ApolloClientResult<Self> {
         let content = response.text().await?;
@@ -166,8 +170,11 @@ impl PerformResponse for ini::Properties {
 }
 
 /// Create request url from base url, mainly path and queries.
-#[allow(dead_code)]
-pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> ApolloClientResult<Url> {
+#[cfg(feature = "conf")]
+pub(crate) fn handle_url(
+    request: &impl PerformRequest,
+    base_url: url::Url,
+) -> ApolloClientResult<url::Url> {
     let mut url = base_url;
     let path = &request.path();
     let query = &request.queries()?;
@@ -183,7 +190,7 @@ pub(crate) fn handle_url(request: &impl PerformRequest, base_url: Url) -> Apollo
 }
 
 /// Validate response is successful or not.
-#[allow(dead_code)]
+#[cfg(feature = "conf")]
 pub(crate) async fn validate_response(response: Response) -> ApolloClientResult<Response> {
     ApolloResponseError::from_response(response)
         .await
@@ -191,7 +198,7 @@ pub(crate) async fn validate_response(response: Response) -> ApolloClientResult<
 }
 
 /// Implement PerformResponse for response struct which content type is `application/json`.
-#[allow(unused_macros)]
+#[cfg(feature = "conf")]
 macro_rules! implement_json_perform_response_for {
     ($t:ty) => {
         #[async_trait::async_trait]
