@@ -87,6 +87,7 @@ pub(crate) trait PerformRequest {
     }
 
     /// AppId
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn app_id(&self) -> Option<&str> {
         None
     }

@@ -69,11 +69,12 @@ impl PerformRequest for CachedFetchRequest {
         Ok(pairs)
     }
 
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn app_id(&self) -> Option<&str> {
         Some(&self.app_id)
     }
 
-    #[cfg(feature = "auth")]
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn access_key(&self) -> Option<&str> {
         self.access_key.as_deref()
     }
@@ -159,11 +160,12 @@ impl PerformRequest for FetchRequest {
         Ok(pairs)
     }
 
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn app_id(&self) -> Option<&str> {
         Some(&self.app_id)
     }
 
-    #[cfg(feature = "auth")]
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn access_key(&self) -> Option<&str> {
         self.access_key.as_deref()
     }
@@ -243,11 +245,12 @@ impl PerformRequest for NotifyRequest {
         request_builder.timeout(self.timeout)
     }
 
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn app_id(&self) -> Option<&str> {
         Some(&self.app_id)
     }
 
-    #[cfg(feature = "auth")]
+    #[cfg(all(feature = "auth", feature = "conf"))]
     fn access_key(&self) -> Option<&str> {
         self.access_key.as_deref()
     }
