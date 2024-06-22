@@ -182,7 +182,7 @@ pub(crate) fn handle_url(
 
     url.path_segments_mut()
         .map_err(|_| crate::errors::ApolloClientError::UrlCannotBeABase)?
-        .push(path.trim_start_matches('/'));
+        .extend(path.split('/').skip_while(|s| s.is_empty()));
     if !query.is_empty() {
         url.query_pairs_mut().extend_pairs(query);
     }

@@ -132,7 +132,7 @@ impl Display for IpValue {
                 #[cfg(feature = "host-ip")]
                 IpValue::HostIp => {
                     Self::get_all_addrs()
-                        .get(0)
+                        .first()
                         .map(|s| Cow::Owned(s.to_string()))
                         .unwrap_or(Cow::Borrowed("127.0.0.1"))
                 }
