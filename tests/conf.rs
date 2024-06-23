@@ -95,7 +95,7 @@ async fn test_cached_fetch_request() {
                 ..Default::default()
             })
             .await;
-        assert!(matches!(result, Err(ApolloClientError::EmptyConfiguration)));
+        assert_eq!(result.unwrap(), Properties::new());
     }
 }
 

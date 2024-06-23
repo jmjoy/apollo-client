@@ -32,9 +32,6 @@ pub enum ApolloClientError {
 
     #[error("this URL is cannot-be-a-base")]
     UrlCannotBeABase,
-
-    #[error("configuration is empty")]
-    EmptyConfiguration,
 }
 
 /// Apollo api response error, when http status is not success.
