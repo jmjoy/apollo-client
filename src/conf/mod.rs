@@ -48,7 +48,7 @@
 //! use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClientBuilder};
 //! use cidr_utils::cidr::IpCidr;
 //! use futures_util::{pin_mut, stream::StreamExt};
-//! use std::error::Error;
+//! use std::{error::Error, str::FromStr};
 //! use url::Url;
 //!
 //! #[tokio::main]
@@ -236,7 +236,7 @@ impl ApolloConfClient {
     /// use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClient};
     /// use cidr_utils::cidr::IpCidr;
     /// use futures_util::{pin_mut, stream::StreamExt};
-    /// use std::error::Error;
+    /// use std::{error::Error, str::FromStr};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn Error>> {

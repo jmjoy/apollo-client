@@ -165,9 +165,7 @@ impl PerformResponse for ini::Properties {
     async fn from_response(response: Response) -> ApolloClientResult<Self> {
         let content = response.text().await?;
         let i = ini::Ini::load_from_str(&content)?;
-        Ok(i.section(None::<&'static str>)
-            .ok_or(crate::errors::ApolloClientError::EmptyConfiguration)?
-            .clone())
+        Ok(i.section(None::<&'static str>).cloned().unwrap_or_default())
     }
 }
 
