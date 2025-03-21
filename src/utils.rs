@@ -28,7 +28,7 @@ pub(crate) fn get_all_addrs() -> &'static [std::net::IpAddr] {
             .map(|networks| {
                 networks
                     .values()
-                    .map(|network| {
+                    .flat_map(|network| {
                         network
                             .addrs
                             .iter()
@@ -50,7 +50,6 @@ pub(crate) fn get_all_addrs() -> &'static [std::net::IpAddr] {
                                 _ => None,
                             })
                     })
-                    .flatten()
                     .collect()
             })
             .unwrap_or_default()

@@ -160,7 +160,7 @@ async fn test_curd_item_request() {
                 item: OpenCreatedItem {
                     key: "connect_timeout".to_string(),
                     value: "100".to_string(),
-                    comment: None,
+                    comment: Some("connect timeout".to_owned()),
                     data_change_created_by: "apollo".to_string(),
                 },
                 ..Default::default()

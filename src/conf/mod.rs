@@ -48,7 +48,7 @@
 //! use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClientBuilder};
 //! use cidr_utils::cidr::IpCidr;
 //! use futures_util::{pin_mut, stream::StreamExt};
-//! use std::error::Error;
+//! use std::{error::Error, str::FromStr};
 //! use url::Url;
 //!
 //! #[tokio::main]
@@ -236,7 +236,7 @@ impl ApolloConfClient {
     /// use apollo_client::conf::{meta::IpValue, requests::WatchRequest, ApolloConfClient};
     /// use cidr_utils::cidr::IpCidr;
     /// use futures_util::{pin_mut, stream::StreamExt};
-    /// use std::error::Error;
+    /// use std::{error::Error, str::FromStr};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn Error>> {
@@ -263,10 +263,10 @@ impl ApolloConfClient {
     ///     Ok(())
     /// }
     /// ```
-    pub fn watch<'a>(
-        &'a self,
+    pub fn watch(
+        &self,
         request: WatchRequest,
-    ) -> impl Stream<Item = ApolloClientResult<HashMap<String, ApolloClientResult<FetchResponse>>>> + 'a
+    ) -> impl Stream<Item = ApolloClientResult<HashMap<String, ApolloClientResult<FetchResponse>>>> + '_
     {
         let mut watch_notifications = request.create_notifications();
         let mut fetch_notifications = watch_notifications.clone();
