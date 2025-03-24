@@ -2,57 +2,57 @@ name: Rust
 
 on:
     push:
-      branches:
-      - master
-      - develop
+        branches:
+            - master
+            - develop
     pull_request:
-      branches:
-      - "**"
+        branches:
+            - '**'
 
 env:
-  RUST_BACKTRACE: 1
-  RUST_LOG: apollo_client
-  RUSTFLAGS: "-D warnings"
+    RUST_BACKTRACE: 1
+    RUST_LOG: apollo_client
+    RUSTFLAGS: '-D warnings'
 
 jobs:
-  bulid-and-test:
-    strategy:
-      matrix:
-        os:
-        - ubuntu-latest
-#        - macos-latest
-#        - windows-latest
-        features:
-        - --no-default-features
-        - ""
-        - --no-default-features --features auth,conf
-#        - --no-default-features --features host,open
-        - --features full
-    runs-on: ${{ matrix.os }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Docker compose
-      run: docker-compose up -d
-    - name: Build
-      run: cargo build --release --verbose ${{ matrix.features }}
-    - name: Test
-      run: cargo test --release --verbose ${{ matrix.features }}
+    bulid-and-test:
+        strategy:
+            matrix:
+                os:
+                    - ubuntu-latest
+                #        - macos-latest
+                #        - windows-latest
+                features:
+                    - --no-default-features
+                    - ''
+                    - --no-default-features --features auth,conf
+                    #        - --no-default-features --features host,open
+                    - --features full
+        runs-on: ${{ matrix.os }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+            - name: Docker compose
+              run: docker compose up -d
+            - name: Build
+              run: cargo build --release --verbose ${{ matrix.features }}
+            - name: Test
+              run: cargo test --release --verbose ${{ matrix.features }}
 
-  check-fmt-and-docs:
-    strategy:
-      matrix:
-        os:
-        - ubuntu-latest
-#        - macos-latest
-#        - windows-latest
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Setup
-        run: rustup toolchain install nightly --component rustfmt --allow-downgrade
-      - name: Fmt
-        run: cargo +nightly fmt --all -- --check
-      - name: Doc
-        run: cargo +nightly rustdoc --all-features -- --cfg docsrs
+    check-fmt-and-docs:
+        strategy:
+            matrix:
+                os:
+                    - ubuntu-latest
+        #        - macos-latest
+        #        - windows-latest
+        runs-on: ${{ matrix.os }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+            - name: Setup
+              run: rustup toolchain install nightly --component rustfmt --allow-downgrade
+            - name: Fmt
+              run: cargo +nightly fmt --all -- --check
+            - name: Doc
+              run: cargo +nightly rustdoc --all-features -- --cfg docsrs
