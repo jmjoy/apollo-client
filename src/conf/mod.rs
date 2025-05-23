@@ -112,6 +112,7 @@ use reqwest::{Client, ClientBuilder};
 use std::collections::HashMap;
 use url::Url;
 
+#[derive(Clone)]
 enum ServerUrl {
     ConfigServer(Url),
     /// Todo implement fetch config via meta server.
@@ -176,6 +177,7 @@ impl ApolloConfClientBuilder {
 }
 
 /// Apollo configuration apis client.
+#[derive(Clone)]
 pub struct ApolloConfClient {
     server_url: ServerUrl,
     client: Client,
