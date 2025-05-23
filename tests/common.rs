@@ -25,23 +25,23 @@ pub fn setup() {
 
 #[allow(dead_code)]
 fn setup_docker() {
-    let mut down = Command::new("docker-compose");
-    let output = down.arg("down").output().unwrap();
+    let mut down = Command::new("docker");
+    let output = down.arg("compose").arg("down").output().unwrap();
     let down_stdout = String::from_utf8(output.stdout);
     let down_stderr = String::from_utf8(output.stderr);
     log::info!(
-        "docker-compose down, stdout: {:?}, stderr: {:?}",
+        "docker compose down, stdout: {:?}, stderr: {:?}",
         down_stdout,
         down_stderr
     );
     assert!(output.status.success());
 
-    let mut up = Command::new("docker-compose");
-    let output = up.arg("up").arg("-d").output().unwrap();
+    let mut up = Command::new("docker");
+    let output = up.arg("compose").arg("up").arg("-d").output().unwrap();
     let up_stdout = String::from_utf8(output.stdout);
     let up_stderr = String::from_utf8(output.stderr);
     log::info!(
-        "docker-compose up -d, stdout: {:?}, stderr: {:?}",
+        "docker compose up -d, stdout: {:?}, stderr: {:?}",
         up_stdout,
         up_stderr
     );
@@ -83,7 +83,7 @@ fn setup_docker() {
     });
 
     if !b {
-        panic!("docker-compose up failed");
+        panic!("docker compose up failed");
     }
 }
 
